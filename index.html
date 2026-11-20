@@ -272,7 +272,18 @@ table.stats td.who small{display:block;font-weight:500;color:var(--muted);font-s
 /* 手機與小螢幕：右側功能收進「選單」、指令列改成可橫向滑動、縮小資源列與小地圖 */
 #b-menu{display:none}
 /* ---------- 介面架構調整：主選單、遊戲準備、設定、右上入口、小地圖快捷 ---------- */
-#gmenu{z-index:20}#settings,#help,#tree,#changelog{z-index:30}#quit{z-index:40}
+#gmenu{z-index:20}#settings,#help,#tree,#changelog,#board{z-index:30}
+.menu-row{display:flex;gap:inherit}.menu-row .big{flex:1 1 0;min-width:0}
+#board-form{display:flex;flex-direction:column;gap:6px;margin:8px 0 10px}
+#board-in{font-family:var(--font);font-size:17px;padding:8px 10px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink);resize:vertical;min-height:56px;box-sizing:border-box;width:100%}
+.board-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.board-row .note{flex:1 1 220px;margin:0}
+#board-msg.err{color:var(--red);font-weight:700}
+#board-count{color:var(--muted);font-size:15px}
+#board-list{overflow-y:auto;max-height:calc(100vh - 330px);min-height:120px;border-top:1px dashed var(--line);padding-top:6px}
+.board-item{padding:8px 2px;border-bottom:1px solid var(--line)}
+.board-item .bh{display:flex;gap:10px;align-items:baseline;font-weight:700}.board-item .bh small{color:var(--muted);font-weight:400;font-size:14px}
+.board-item p{margin:3px 0 0;color:var(--ink);font-size:17px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.board-empty{color:var(--muted);text-align:center;padding:24px 0}#quit{z-index:40}
 #fade{position:fixed;inset:0;background:#000;z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s linear}
 #fade.on{opacity:1;pointer-events:auto}
 html.fade-boot #fade{opacity:1;pointer-events:auto;transition:none}
@@ -580,6 +591,15 @@ details summary{cursor:pointer;font-weight:700;padding:8px 0;color:var(--muted)}
   #chat{bottom:calc(env(safe-area-inset-bottom,0px) + 110px);left:70px}
   #toast{top:44px}
 }
+/* 協力守護：波次倒數取代遊戲時間 */
+body.grd .chip:has(#r-time){display:none}
+#grd-row .seg small{display:block;font-size:12px;font-weight:500;opacity:.75}
+#mode-row .sel{width:100%;max-width:280px;font-weight:700}
+#chip-vr.warn{background:#c0392b;color:#fff;border-color:#c0392b}
+#vr-desc{margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.05);line-height:1.5}
+#kings .gift{display:flex;gap:4px;margin:2px 0 6px 22px}
+#kings .gift button{font-family:var(--font);font-size:13px;font-weight:700;padding:2px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
+#kings .gift button:disabled{opacity:.4;cursor:default}
 /* 更窄的手機橫向：資源列放不下時先隱藏遊戲時間 */
 @media (max-height:500px) and (max-width:760px){.chip:has(#r-time){display:none}}
 </style>
@@ -687,6 +707,8 @@ document.documentElement.classList.add('fade-boot');setTimeout(function(){docume
   <div class="chip"><i class="ico" data-ico="icon_resource_population">👥</i> <span id="r-pop">0/0</span><small>人口</small></div>
   <div class="chip"><i class="ico" id="i-age" data-ico="icon_age_age1">🏛️</i> <span id="r-age">聚落時代</span></div>
   <div class="chip" id="chip-nat" hidden><span id="r-nat"></span></div>
+  <div class="chip" id="chip-grd" hidden><span id="r-grd"></span></div>
+  <div class="chip" id="chip-vr" hidden><span id="r-vr"></span></div>
   <div class="chip"><i class="ico" data-ico="icon_resource_time">⏱</i> <span id="r-time">00:00</span></div>
 </div>
 <!-- 右上角：科技、遊戲速度（僅單人）、語音（僅多人）、選單 -->
@@ -725,9 +747,8 @@ document.documentElement.classList.add('fade-boot');setTimeout(function(){docume
       <div class="menu-list">
         <button class="big" type="button" id="b-solo">單人遊戲</button>
         <button class="big" type="button" id="b-multi">多人連線</button>
-        <button class="big" type="button" id="b-adv">冒險模式</button>
-        <button class="big" type="button" id="b-help0">遊戲指南</button>
-        
+        <div class="menu-row"><button class="big" type="button" id="b-help0">遊戲指南</button><button class="big" type="button" id="b-board0">留言板</button></div>
+
         
       </div>
       <div class="title-utilities" aria-label="遊戲畫面與音效"><span class="title-style-label">遊戲畫面</span><button class="big" type="button" id="b-style0" title="切換遊戲畫面：3D／精緻 3D／像素">3D 風格</button><button class="big" type="button" id="b-mute0">🔊 音效開</button></div>
@@ -761,6 +782,18 @@ document.documentElement.classList.add('fade-boot');setTimeout(function(){docume
         </div>
         <div class="prep-col" id="rules">
           <h3 id="rules-title">遊戲規則</h3>
+          <div class="field" id="mode-row"><label class="fl" for="o-mode">遊戲模式</label>
+            <select id="o-mode" class="sel">
+              <optgroup label="對戰">
+                <option value="std">標準對戰</option><option value="king">守護領主</option><option value="hill">聖地爭奪</option><option value="wonder">奇觀競賽</option>
+                <option value="treaty">和平條約</option><option value="nomad">遊牧開局</option><option value="famine">飢荒時代</option>
+              </optgroup>
+              <optgroup label="合作">
+                <option value="grd">協力守護</option><option value="adv">冒險</option>
+              </optgroup>
+            </select>
+            <p class="note" id="vr-desc"></p>
+          </div>
           <div class="field" id="diff-row"><span class="fl">難度</span>
             <div class="seg" role="radiogroup" aria-label="難度">
               <button type="button" role="radio" data-diff="beginner">新手</button>
@@ -769,6 +802,16 @@ document.documentElement.classList.add('fade-boot');setTimeout(function(){docume
               <button type="button" role="radio" data-diff="hard">困難</button>
               <button type="button" role="radio" data-diff="expert">專家</button>
             </div>
+          </div>
+          <div class="field" id="grd-row" hidden><span class="fl">遊戲長度</span>
+            <div class="seg" role="radiogroup" aria-label="遊戲長度">
+              <button type="button" role="radio" data-glen="short">短<small>5 波・約 8 分</small></button>
+              <button type="button" role="radio" data-glen="std">標準<small>8 波・約 15 分</small></button>
+              <button type="button" role="radio" data-glen="long">長<small>15 波・約 30 分</small></button>
+            </div>
+            <label class="chk-row" id="grd-ai-row">電腦隊友
+              <select id="o-grd-ai" class="sel" style="margin-left:8px"><option value="0">不需要</option><option value="1" selected>1 位</option><option value="2">2 位</option><option value="3">3 位</option></select></label>
+            <p class="note">守住中央的城堡。敵軍只攻城堡，路被擋住會先打破城門或牆；守完所有波次就獲勝。建築、科技與人口全隊共用，資源各自分開，可以在「王國」面板送給隊友。</p>
           </div>
           <div class="field" id="count-row"><label class="fl" for="o-count">王國數量</label>
             <select id="o-count" class="sel">
@@ -846,6 +889,18 @@ document.documentElement.classList.add('fade-boot');setTimeout(function(){docume
   <div class="card wide" style="max-width:720px">
     <div class="tree-head"><h1 style="font-size:28px;margin:0">更新履歷</h1><button class="big" type="button" id="b-changelog-close">關閉</button></div>
     <div id="changelog-body"></div>
+  </div>
+</div>
+<!-- 留言板：所有玩家共用，資料存在 BOARD_URL 指向的服務 -->
+<div id="board" class="overlay" hidden>
+  <div class="card wide" style="max-width:720px">
+    <div class="tree-head"><h1 style="font-size:28px;margin:0">留言板</h1><div class="prep-actions"><button class="big" type="button" id="b-board-refresh">重新整理</button><button class="big" type="button" id="b-board-close">關閉</button></div></div>
+    <form id="board-form" autocomplete="off">
+      <label class="fl" for="board-in">以「<b id="board-name"></b>」的名義留言</label>
+      <textarea id="board-in" maxlength="200" rows="2" placeholder="想說什麼？（最多 200 字）"></textarea>
+      <div class="board-row"><span class="note" id="board-msg">留言是公開的，所有玩家都看得到，請不要寫個人資料。</span><span id="board-count">0／200</span><button class="big" type="submit" id="b-board-send">送出</button></div>
+    </form>
+    <div id="board-list" aria-live="polite"></div>
   </div>
 </div>
 <div id="help" class="overlay" hidden>
@@ -1248,7 +1303,9 @@ let formMode='box';try{const f=localStorage.getItem('tl-form');if(f&&FORMS[f])fo
 // 地圖依王國數量放大，讓每國平均分到的面積接近 2 國時的大小（10 國約 233 格）
 const mapSizeFor=k=>k<=2?96:Math.round(104*Math.sqrt(k/2));
 // 已達人口上限時不能再蓋房屋：已完成與建造中的房屋、城鎮中心提供的人口合計達到上限
-function popRoomFull(t){let c=teams[t].cap;for(const e of ents)if(!e.dead&&e.kind==='bld'&&e.team===t&&!e.done)c+=e.d.pop||0;return c>=POPMAX}
+function popRoomFull(t){
+  if(GRD&&sides[t]===0){const g=grdTeams();let c=0;for(const k of g)c+=teams[k].cap;for(const e of ents)if(!e.dead&&e.kind==='bld'&&g.includes(e.team)&&!e.done)c+=e.d.pop||0;return c>=grdPopEach()*g.length}
+  let c=teams[t].cap;for(const e of ents)if(!e.dead&&e.kind==='bld'&&e.team===t&&!e.done)c+=e.d.pop||0;return c>=popMax()}
 // 最多 10 個王國；每個王國從 20 色調色盤中選一個不重複的顏色
 const MAXT=10,TEAMS=[0,1,2,3,4,5,6,7,8,9];
 const PALETTE=[['藍色',0x4a90e2],['紅色',0xe85d4a],['橘色',0xf2a93b],['紫色',0x9b6bd6],['綠色',0x4caf50],['青色',0x26b5c4],['粉紅',0xf06fa8],['黃色',0xf2d43b],['棕色',0x9c6b43],['白色',0xeeeeee],
@@ -1267,7 +1324,7 @@ const colorSwatch=ci=>'<i class="dot" style="background:'+hexCss(PALETTE[ci][1])
 const WK=['build','wood','gold','food','farm'];
 const AGE=['','聚落時代','城邦時代','神話時代'];
 const RES_ICON={food:'🍖',wood:'🪵',gold:'🪙'};
-const RES_NAME={food:'莓果叢',wood:'樹木',gold:'金礦'};
+const RES_NAME={food:'莓果叢',wood:'樹木',gold:'金礦'},GIFT_N={food:'食物',wood:'木材',gold:'黃金'};
 const RATE={food:0.42,wood:0.5,gold:0.5,farm:0.6};
 // 兵種定位參考《世紀帝國 II》：ma／pa 為近戰／遠程護甲，cls 為兵種類別，bonus 為對特定類別的額外傷害。
 // 相剋循環：矛兵剋騎兵、騎兵剋弓兵與散兵、弓兵剋步兵與矛兵、散兵剋弓兵、劍士剋矛兵與散兵、攻城槌拆建築但怕近戰。
@@ -1306,7 +1363,10 @@ const BLD={
   temple:{name:'神殿',icon:'⛩️',hp:420,size:3,cost:{wood:200,gold:150},time:35,trains:['golem','phoenix','unicorn'],h:2.7,age:2},
   palisade:{name:'柵欄',icon:'🪵',hp:120,size:1,cost:{wood:4},time:3,h:1.1,wall:1},
   wall:{name:'城牆',icon:'🧱',hp:520,size:1,cost:{wood:6,gold:4},time:6,h:1.4,wall:1,age:2},
-  gate:{name:'城門',icon:'🚪',hp:650,size:1,cost:{wood:30,gold:15},time:12,h:1.7,gate:1,age:2}
+  gate:{name:'城門',icon:'🚪',hp:650,size:1,cost:{wood:30,gold:15},time:12,h:1.7,gate:1,age:2},
+  // 奇觀：只在「奇觀競賽」規則出現，外觀借用神殿放大
+  wonder:{name:'奇觀',icon:'🏛️',hp:2600,size:4,cost:{food:500,wood:700,gold:700},time:140,age:3,look:'temple',h:3.6,wonder:1,
+    desc:'完成後守住 3 分鐘就獲勝（奇觀競賽）；被摧毀就要重新來過'}
 };
 /* ---------- 6 國模式：各國特殊建築、特殊兵種與專屬科技（nat 表示只有該國可用） ---------- */
 Object.assign(UNITS,{
@@ -1340,7 +1400,7 @@ Object.assign(BLD,{
     desc:'訓練狂戰士；周圍 6 格內我方軍事單位攻擊 +1'}
 });
 const NAT_BLD={blade:'arena',mage:'magetower',thief:'market',holy:'monastery',ranger:'rangercamp',war:'totem'};
-const BUILD_MENU=['house','farm','store','barracks','tower','smithy','temple','arena','magetower','market','monastery','rangercamp','totem','palisade','wall','gate','tc'];
+const BUILD_MENU=['house','farm','store','barracks','tower','smithy','temple','arena','magetower','market','monastery','rangercamp','totem','palisade','wall','gate','tc','wonder'];
 // 城鎮中心可以由村民建造：一座都沒有時任何時代都能重建；城邦時代起可以加蓋，最多 TC_MAX 座。
 // 滅亡條件：沒有城鎮中心，而且所有單位都陣亡（還有村民就能重建，沒有時間限制）
 const TC_MAX=3;
@@ -1562,7 +1622,33 @@ let myTeam=0;
 const sides=TEAMS.slice(),active=TEAMS.map(t=>t<2),ais=TEAMS.map(()=>null);
 const side=t=>sides[t];
 const hostile=(a,b)=>a>=0&&b>=0&&sides[a]!==sides[b];
-const popMax=()=>POPMAX;
+// 遊戲準備頁的狀態（模式切換、冒險職業），宣告在前面讓啟動時的畫面更新也能讀到
+let prepMode='solo',soloMode='vs',grdLen='std',myCls='sword',myPts=[0,0,0],soloVr='std';
+/* ---------- 對戰規則：在一般對戰上改變勝利條件或限制 ----------
+   king 守護領主：每國一位領主，領主陣亡就出局
+   hill 聖地爭奪：三處聖地同時存在，佔領後保持到被奪走；佔領最多的陣營每秒得 1 分，先得 VR_HILL 分獲勝
+   wonder 奇觀競賽：神話時代可蓋奇觀，完成後守住 3 分鐘獲勝
+   treaty 和平條約：前 10 分鐘不能攻擊
+   nomad 遊牧開局：沒有城鎮中心；出生點沒有資源，先探路再選營地建城
+   famine 飢荒時代：食物每秒依人口消耗，歸零就滅亡 */
+const VR_LIST=[['std','標準對戰','摧毀所有敵人的城鎮中心與單位。'],['king','守護領主','每國多一位領主，領主陣亡整個王國就出局；擊殺所有敵方領主獲勝。'],
+  ['hill','聖地爭奪','地圖上有三處聖地。軍隊單獨站在聖地裡 8 秒就能佔領，離開後仍算你的，直到被敵軍奪走。佔領最多聖地的陣營每秒得 1 分，先得 300 分獲勝。'],
+  ['wonder','奇觀競賽','進入神話時代後可以蓋奇觀，完成後守住 3 分鐘獲勝。'],['treaty','和平條約','前 10 分鐘不能攻擊，先專心發展，之後照標準對戰。'],
+  ['nomad','遊牧開局','開局沒有城鎮中心，出生點也沒有資源。前 20 秒是探路期（不能攻擊、不能建造），之後找營地建城：每國附近有一處自己的小營地，地圖中央還有資源更多的大營地，但所有王國都能去搶。'],
+  ['famine','飢荒時代','食物每秒都會減少，人口越多吃得越快。食物一歸零，王國就立刻滅亡。為了避免誤按，存糧不到安全量時會擋下訓練與研究。']];
+const VR_NAME={};for(const v of VR_LIST)VR_NAME[v[0]]=v[1];
+// VR_HILL：聖地獲勝分數；VR_HILL_CAP：奪取聖地所需秒數；VR_NOMAD_T：遊牧探路期；
+// VR_EAT：每人口每秒吃掉的食物；VR_STARVE：食物歸零後幾秒滅亡（1＝立刻）；VR_FAMINE：飢荒時代的野外資源量倍率
+const VR={mode:'std'},VR_HILL=300,VR_HILL_CAP=8,VR_WONDER=180,VR_TREATY=600,VR_HILL_R=4,VR_NOMAD_T=20,VR_EAT=0.1,VR_STARVE=1,VR_FAMINE={wood:1,food:0.6,gold:1};
+let GRD=false;const GD={},GRD_POP=70,GRD_CASTLE=3.5;   // 協力守護模式的狀態（規則在「協力守護模式」段落）
+// 協力守護：入侵軍固定用最後一個位置；守城玩家（真人與電腦隊友）都在第 0 陣營
+const GE=MAXT-1,GRD_POPS=[70,40,28,22];
+const grdTeams=()=>TEAMS.filter(t=>active[t]&&sides[t]===0);
+// 每位守城玩家的人口上限：全隊合計約 70～90，人越多每人越少
+const grdPopEach=()=>{const k=grdTeams().length||1;return GRD_POPS[k-1]||Math.round(88/k)};
+// 守護模式中，盟友的建築可以共用（訓練、研究、存放資源、建造與修理）
+const shareB=(team,b)=>b.team===team||(GRD&&team>=0&&!hostile(b.team,team));
+const popMax=()=>GRD?grdPopEach():POPMAX;
 const pendEv=[];let astarFound=true;
 const net={role:'solo',peer:null,conn:null,conns:[],send(m){
   if(this.role==='host'){for(const c of this.conns)if(c.open)c.send(m)}
@@ -1572,7 +1658,8 @@ let sel=[],mode=null,running=false,ended=false,time=0,sweep=false;
 const cam={x:10,z:52,d:30};
 let lastAlert=-99;const pings=[];
 const ti=v=>Math.max(0,Math.min(N-1,Math.floor(v)));
-const capOf=t=>Math.min(popMax(t),teams[t].cap);
+// 守護模式：房屋提供的人口全隊合計，再平均分給每位守城玩家
+const capOf=t=>{if(GRD&&sides[t]===0){const g=grdTeams();let c=0;for(const k of g)c+=teams[k].cap;return Math.min(grdPopEach(),Math.floor(c/(g.length||1)))}return Math.min(popMax(t),teams[t].cap)};
 /* ---------- 6 國模式：國家加成、弱點與盟友加成（第一階段：只有數值差異） ---------- */
 const NATS={
   blade:{name:'鋼刃王國',theme:'劍士',icon:'🗡️',tag:'均衡正規軍，步兵堅實、科技便宜',
@@ -1611,17 +1698,24 @@ function costMul(t,c){
   return 1;
 }
 function adjCost(t,c){const m=costMul(t,c);if(m===1)return c;const o={};for(const k in c)o[k]=Math.round(c[k]*m);return o}
-const afford=(t,c)=>{c=adjCost(t,c);for(const k in c)if(teams[t][k]<c[k])return false;return true};
+// 飢荒時代的防呆：食物歸零就滅亡，所以花費後必須還剩「30＋30 秒的消耗量」，不夠就擋下（玩家與電腦相同）
+const vrReserve=t=>VR.mode==='famine'?Math.ceil(30+teams[t].pop*VR.eat*30):0;
+// 這筆花費在 k 這項資源上是否不夠（食物要另外扣掉飢荒時代的保留量）
+const lacks=(t,c,k)=>teams[t][k]-c[k]<(k==='food'?vrReserve(t):0);
+const afford=(t,c)=>{c=adjCost(t,c);for(const k in c)if(lacks(t,c,k))return false;return true};
 const pay=(t,c,s)=>{c=adjCost(t,c);for(const k in c)teams[t][k]-=c[k]*(s||1)};
-const costStr=(c,t)=>{c=adjCost(t==null?myTeam:t,c);let tm=null;if(t==null)try{if(running)tm=teams[myTeam]}catch(_){}return Object.keys(c).map(k=>tm&&tm[k]<c[k]?'<span class="lk">'+RES_ICON[k]+c[k]+'</span>':RES_ICON[k]+c[k]).join(' ')};
+const costStr=(c,t)=>{c=adjCost(t==null?myTeam:t,c);let tm=null;if(t==null)try{if(running)tm=teams[myTeam]}catch(_){}return Object.keys(c).map(k=>tm&&lacks(myTeam,c,k)?'<span class="lk">'+RES_ICON[k]+c[k]+'</span>':RES_ICON[k]+c[k]).join(' ')};
 // 資源不足時：上方對應的資源欄閃爍紅底
-const lackOf=c=>{c=adjCost(myTeam,c);const tm=teams[myTeam];return Object.keys(c).filter(k=>tm[k]<c[k])};
+const lackOf=c=>{c=adjCost(myTeam,c);return Object.keys(c).filter(k=>lacks(myTeam,c,k))};
 function flashLack(keys){for(const k of keys){const el=$('r-'+k);if(!el)continue;const c=el.parentElement;c.classList.remove('lack');void c.offsetWidth;c.classList.add('lack');clearTimeout(c._lk);c._lk=setTimeout(()=>c.classList.remove('lack'),1300)}}
-function lackToast(c){flashLack(lackOf(c));toast('資源不足')}
+function lackToast(c){flashLack(lackOf(c));const a=adjCost(myTeam,c),r=vrReserve(myTeam);
+  // 食物本身夠、只是會動到保留量：說明原因
+  toast(r&&a.food&&teams[myTeam].food>=a.food&&teams[myTeam].food-a.food<r?'飢荒時代：花費後食物要剩 '+r+' 以上，先多存一點食物':'資源不足')}
 const has=(t,id)=>t>=0&&teams[t].tech[id];
 // 只有該國能使用的建築、兵種、科技
 const natOk=(t,d)=>!d.nat||(t>=0&&nations[t]===d.nat);
-const techAvail=(t,id)=>{const T=TECH[id],tm=teams[t];return T&&natOk(t,T)&&!natLacks(t,id)&&!tm.tech[id]&&!tm.res[id]&&tm.age>=T.age&&(!T.req||tm.tech[T.req])};
+const techAvail=(t,id)=>{const T=TECH[id],tm=teams[t];return T&&natOk(t,T)&&!natLacks(t,id)&&!tm.tech[id]&&!tm.res[id]&&tm.age>=T.age&&(!T.req||tm.tech[T.req])&&
+  !(GRD&&sides[t]===0&&grdTeams().some(g=>teams[g].res[id]))};   // 守護模式：科技全隊共用，隊友研究中就不能重複研究
 // 建築可建造的時代（聖光教國的神殿提前到聚落時代）
 const bAge=(t,k)=>k==='temple'&&isNat(t,'holy')?1:(BLD[k].age||1);
 const refOf=t=>t.kind==='res'?'n'+t.nid:'e'+t.id;
@@ -1707,6 +1801,7 @@ function dmgVs(src,t){
 // 飛行單位只有遠程單位與防禦建築打得到
 const canHit=(src,t)=>!(t.kind==='unit'&&t.d.fly&&src.kind==='unit'&&!src.d.proj);
 function findBld(u,range){
+  if(vrPeace())return null;
   let best=null,bd=range;
   for(const o of ents){if(o.dead||o.kind!=='bld'||!hostile(o.team,u.team))continue;const d=distTo(u,o);if(d<bd){bd=d;best=o}}
   return best;
@@ -1746,7 +1841,7 @@ function maxHpOf(kind,type,team){
 }
 function refreshMaxHp(team,keepHp){
   for(const e of ents){
-    if(e.dead||e.team!==team)continue;const m=maxHpOf(e.kind,e.type,team);
+    if(e.dead||e.team!==team)continue;const m=e.castle?Math.round(maxHpOf(e.kind,e.type,team)*GRD_CASTLE):e.king?Math.round(maxHpOf(e.kind,e.type,team)*6):maxHpOf(e.kind,e.type,team);
     if(m!==e.maxhp){if(!keepHp&&(e.kind==='unit'||e.done))e.hp+=m-e.maxhp;e.maxhp=m}
   }
 }
@@ -1849,6 +1944,9 @@ function bakeGroup(g,skip){
 const UNIT_TPL={},BLD_TPL={};
 function makeUnit(type,team){const L=(UNITS[type]&&UNITS[type].look)||type;return A2D.on&&a2uHas(L+'_front')?makeUnit2D(L,team):ART.on&&artHas(L+'_idle')?makeUnitPx(L,team):makeUnit3D(L,team)}
 function makeBuilding(type,team,age,conn){
+  // 沒有專屬外觀的建築（奇觀）：借用另一種建築的模型並依佔地放大
+  const lk=BLD[type]&&BLD[type].look;
+  if(lk){const p=new THREE.Group(),g=makeBuilding(lk,team,age,conn);g.scale.multiplyScalar(BLD[type].size/BLD[lk].size);p.add(g);p.userData=g.userData;return p}
   if(A2D.on){const key='a2/'+type+'/'+team+'/'+(age||1)+'/'+(conn||0);let t=BLD_TPL[key];
     if(t===undefined){t=makeBuilding2D(type,team,age||1,conn||0);BLD_TPL[key]=t}
     if(t)return t.clone(true);}
@@ -2309,9 +2407,24 @@ const cheb=(x,z,p)=>Math.max(Math.abs(x-p.x),Math.abs(z-p.z));
 function genMap(seed){
   const rnd=mulberry32(seed),gen=new Uint8Array(N*N),ri=(a,b)=>a+Math.floor(rnd()*(b-a+1));
   const dB=(x,z)=>{let d=999;for(const b of BASES)d=Math.min(d,cheb(x,z,b));return d};
+  // 遊牧開局：出生點不放資源，改成每個王國兩處營地（位置先算好，湖泊與野外資源要避開營地中央）
+  //   近營地：每國一處，離出生點約 15 格、偏離中央
+  //   大營地：共用，在地圖中央一帶，資源約近營地的 1.4 倍；兩國同時進駐就得平分
+  const nomad=VR.mode==='nomad',cM=(N-1)/2,campPts=[];
+  if(nomad){const sideSign=rnd()<0.5?1:-1,sideOff=1.25+rnd()*0.4,inb=(x,z)=>x>=13&&z>=13&&x<=N-14&&z<=N-14;
+    for(const B of BASES){const toC=Math.atan2(cM-B.z,cM-B.x),D=Math.hypot(cM-B.x,cM-B.z);
+      // 依序試：偏一側、偏另一側、較靠中央的兩側；都超出地圖就夾回界內（營地周圍 12 格內要放得下資源）
+      let nx=0,nz=0,ok=false;
+      for(const a of [toC+sideSign*sideOff,toC-sideSign*sideOff,toC+sideSign*0.7,toC-sideSign*0.7,toC]){nx=Math.round(B.x+Math.cos(a)*15);nz=Math.round(B.z+Math.sin(a)*15);if(inb(nx,nz)){ok=true;break}}
+      if(!ok){nx=Math.max(13,Math.min(N-14,nx));nz=Math.max(13,Math.min(N-14,nz))}
+      campPts.push({x:nx,z:nz,rich:0,B})}
+    // 大營地是共用的：2 國 1 處（地圖中央）、3～4 國 2 處、5 國以上 3 處，位置與各出生點距離盡量相等
+    vrSites().slice(0,Math.max(1,Math.min(3,BASES.length>>1))).forEach(p=>campPts.push({x:Math.round(p.x),z:Math.round(p.z),rich:1,B:null}))}
+  const nearCamp=(x,z,r)=>campPts.some(p=>cheb(x,z,p)<r);
   function put(x,z,v){
     if(x<1||z<1||x>=N-1||z>=N-1||gen[x+z*N])return false;
     const d=dB(x,z);
+    if(nomad&&nearCamp(x,z,3))return false;   // 營地中央留空給城鎮中心
     if(d<4||(v===1&&d<6))return false;
     gen[x+z*N]=v;return true;
   }
@@ -2322,7 +2435,7 @@ function genMap(seed){
   const shape=(n,span)=>{const o=[[0,0]];let guard=0;while(o.length<n&&guard++<200){const p=[scatter(span),scatter(span)];if(!o.some(q=>q[0]===p[0]&&q[1]===p[1]))o.push(p)}return o};
   const polar=(ang,r)=>[Math.round(Math.cos(ang)*r),Math.round(Math.sin(ang)*r)];
   // 地形：湖泊（4）與岩石區（5），四向對稱且遠離基地；飛行單位可越過
-  const putT=(a,b,v)=>{if(a<1||b<1||a>=N-1||b>=N-1||gen[a+b*N]||dB(a,b)<21)return;gen[a+b*N]=v};
+  const putT=(a,b,v)=>{if(a<1||b<1||a>=N-1||b>=N-1||gen[a+b*N]||dB(a,b)<21||(nomad&&nearCamp(a,b,13)))return;gen[a+b*N]=v};
   const lake=(cx,cz,r)=>{const p1=rnd()*6.3,p2=rnd()*6.3,e=0.75+rnd()*0.5,R=Math.ceil(r*1.6)+1;
     for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++){const ang=Math.atan2(b,a*e),d=Math.hypot(a*e,b);if(d<=r*(0.82+0.16*Math.sin(ang*2+p1)+0.1*Math.sin(ang*3+p2)))putT(cx+a,cz+b,4)}};
   for(let i=0,n=sc(ri(4,7));i<n;i++)lake(ri(8,N-9),ri(8,N-9),2+rnd()*2.2);
@@ -2338,12 +2451,28 @@ function genMap(seed){
   ];
   const woods=[];for(let i=0,n=ri(3,4);i<n;i++)woods.push({c:polar(-0.5+rnd()*2.6,10+rnd()*5),s:shape(ri(22,40),ri(3,5))});
   // 各基地套用同一組相對配置，依基地朝向地圖中心的方向旋轉
+  // 遊牧開局的營地內容：各王國套用同一組形狀以維持公平
+  const campTpl=rich=>{const a=rnd()*6.3,t=[];
+    const add=(v,ang,r,n,span)=>{const c=polar(ang,r);for(const o of shape(n,span))t.push([v,c[0]+o[0],c[1]+o[1]])};
+    // 近營地：漿果 6、金礦 4、樹 26。大營地：總量約 1.4 倍，分成兩側，兩個王國同時進駐時各拿一半
+    if(!rich){add(2,a,4.5,6,1.3);add(3,a+2.2,5,4,1.1);add(1,a+4.2,7,26,3)}
+    else{add(2,a,5,5,1.3);add(2,a+3.14,5,4,1.3);add(3,a+1.57,5.5,3,1.1);add(3,a+4.71,5.5,3,1.1);add(1,a+0.8,9,19,3);add(1,a+3.9,9,19,3)}
+    return t};
+  const tplNear=nomad&&campTpl(false),tplRich=nomad&&campTpl(true);
   for(const B of BASES){
     const phi=B.a+Math.PI*1.25,cs=Math.cos(phi),sn=Math.sin(phi);
     const at=(ox,oz)=>{const lx=ox,lz=-oz;return[Math.round(B.x+lx*cs-lz*sn),Math.round(B.z+lx*sn+lz*cs)]};
+    if(nomad){
+      // 資源依基地朝向旋轉後放到營地周圍
+      for(const p of campPts){if(p.B!==B)continue;
+        for(const [v,ox,oz] of (p.rich?tplRich:tplNear))put(Math.round(p.x+ox*cs+oz*sn),Math.round(p.z+ox*sn-oz*cs),v);
+        VR.camps.push({x:p.x+0.5,z:p.z+0.5,rich:0,t:B.t})}
+      continue;
+    }
     for(const f of near)for(const o of f.s){const p=at(f.c[0]+o[0],f.c[1]+o[1]);put(p[0],p[1],f.v)}
     for(const f of woods)for(const o of f.s){const p=at(f.c[0]+o[0],f.c[1]+o[1]);put(p[0],p[1],1)}
   }
+  if(nomad)for(const p of campPts){if(!p.rich)continue;for(const [v,ox,oz] of tplRich)put(p.x+ox,p.z+oz,v);VR.camps.push({x:p.x+0.5,z:p.z+0.5,rich:1,t:-1})}
   for(let i=0,n=sc(ri(10,16));i<n;i++){const x=ri(6,N-7),z=ri(6,N-7);if(dB(x,z)>15)for(const o of shape(ri(2,5),1.1))putS(x+o[0],z+o[1],3)}
   for(let i=0,n=sc(ri(14,20));i<n;i++){const x=ri(5,N-6),z=ri(5,N-6);if(dB(x,z)>12)for(const o of shape(ri(3,6),1.5))putS(x+o[0],z+o[1],2)}
   // 樹林與零星樹木完全隨機；樹林內部留空隙，避免形成整片無法穿越的牆
@@ -2883,7 +3012,7 @@ function buildResources(gen){
   for(let z=0;z<N;z++)for(let x=0;x<N;x++){
     const v=gen[x+z*N];if(!v)continue;
     if(v>=4){terr[x+z*N]=v===4?1:2;blocked[x+z*N]=1;continue}
-    const n={kind:'res',nid:nodeById.length,rtype:v===1?'wood':v===2?'food':'gold',amount:v===1?80:v===2?120:400,x:x+0.5,z:z+0.5,tx:x,tz:z,s:1,team:-1,dead:false,h:v===1?1.6:0.8};
+    const n={kind:'res',nid:nodeById.length,rtype:v===1?'wood':v===2?'food':'gold',amount:Math.round((v===1?80:v===2?120:400)*(VR.mode==='famine'?VR_FAMINE[v===1?'wood':v===2?'food':'gold']:1)),x:x+0.5,z:z+0.5,tx:x,tz:z,s:1,team:-1,dead:false,h:v===1?1.6:0.8};
     occ[x+z*N]=n;blocked[x+z*N]=1;nodes.push(n);nodeById.push(n);
     if(v===1)trees.push(n);
     else if(A2D.on&&(n.mesh=makeNode2D(n))){}
@@ -2966,6 +3095,7 @@ function addBuilding(type,team,tx,tz,done,id){
 function finishBuilding(b){if(b.done)return;if(running&&net.role!=='client')stats[b.team].built++;b.done=true;b.progress=1;growMesh(b);teams[b.team].cap+=b.d.pop||0}
 function kill(e){
   if(e.dead)return;e.dead=true;sweep=true;byId.delete(e.id);
+  if(GRD&&e.kind==='bld')GD.bv=(GD.bv||0)+1;   // 守護模式：有建築倒塌，攻牆中的敵人重新找路
   fx.push({type:'die',mesh:e.mesh,t:0});
   if(running&&net.role!=='client'&&e.team>=0){const s=stats[e.team];if(e.kind==='unit'){s.lost++;s.lostVal+=costSum(e.d.cost||{})}else if(e.done)s.bLost++}
   // 殉道者：陣亡時治療周圍友軍
@@ -2982,10 +3112,12 @@ function kill(e){
   else{
     for(let a=0;a<e.s;a++)for(let b=0;b<e.s;b++){const i=e.tx+a+(e.tz+b)*N;occ[i]=null;blocked[i]=0;gate[i]=0}
     if(e.done)teams[e.team].cap-=e.d.pop||0;
-    for(const q of e.queue)if(q[0]==='#')delete teams[e.team].res[q.slice(1)];
+    {const qo=qOwn(e);e.queue.forEach((q,i)=>{if(q[0]==='#')delete teams[qo[i]!=null?qo[i]:e.team].res[q.slice(1)]})}
     if(net.role!=='client'&&e.type==='tc'&&running){const last=tcCount(e.team)===0,vl=ents.some(o=>!o.dead&&o.team===e.team&&o.type==='villager');
       announce(kname(e.team)+'的城鎮中心已陷落'+(last&&vl?'，村民可以重建':''));checkVictory()}
+    if(e.type==='wonder'&&e.done&&running&&net.role!=='client')announce('🏛️ '+kname(e.team)+'的奇觀被摧毀了！');
   }
+  if(e.king)vrKingDown(e);
 }
 function distTo(u,e){
   if(e.kind==='unit')return Math.hypot(u.x-e.x,u.z-e.z);
@@ -3078,7 +3210,7 @@ function stepPath(u,dt){
   return true;
 }
 function approach(u,t,range,dt){
-  if(distTo(u,t)<=range+(t.kind==='unit'?0:0.25)){u.path=null;u.pathFor=t;u.unreach=false;return true}
+  if(distTo(u,t)<=range+(t.kind==='unit'?0:0.25)){u.path=null;u.pathFor=t;u.unreach=false;u.partial=false;return true}
   u.repT-=dt;
   const done=!u.path||!u.path.length;
   if(u.pathFor!==t||((done||t.kind==='unit')&&u.repT<=0)){
@@ -3127,10 +3259,11 @@ function findNode(rtype,x,z,u,maxR,ex){
 }
 function nearestDrop(u){
   let best=null,bd=1e9;
-  for(const e of ents){if(e.dead||e.kind!=='bld'||e.team!==u.team||!e.done||!e.d.drop)continue;const d=distTo(u,e);if(d<bd){bd=d;best=e}}
+  for(const e of ents){if(e.dead||e.kind!=='bld'||!shareB(u.team,e)||!e.done||!e.d.drop)continue;const d=distTo(u,e);if(d<bd){bd=d;best=e}}
   return best;
 }
 function findEnemy(e,range,inclBld){
+  if(vrPeace())return null;
   let best=null,bd=range,bb=null,bbd=range;
   for(const o of ents){
     if(o.dead||!hostile(o.team,e.team)||!canHit(e,o))continue;
@@ -3181,14 +3314,17 @@ function techDone(id){toast('研究完成：'+TECH[id].name);sfx(id.slice(0,3)==
 function alertAt(t){if(time-lastAlert>12){lastAlert=time;toast('⚠️ 我方遭受攻擊');sfx('bell',0.8,1,1);pings.push({x:t.x,z:t.z,t:time})}}
 function damage(t,dmg,src){
   if(t.dead)return;
+  if(src&&src.team>=0&&vrPeace()&&hostile(src.team,t.team))return;   // 和平條約期間不造成傷害
   if(t.inv&&t.inv>time)return; // 冒險模式：閃避中短暫無敵
   if(t.df)dmg*=100/(100+t.df);
   if(t.kind==='unit'){}
   else if(has(t.team,'masonry'))dmg*=0.8;
   t.hp-=dmg;
-  if(t.team===myTeam&&(!ADV||t.kind==='bld'))alertAt(t);
+  if((t.team===myTeam&&(!ADV||t.kind==='bld'))||(t.castle&&!hostile(t.team,myTeam)))alertAt(t);
   else if(ais[t.team]){const ai=ais[t.team],tc=ai.tc;if(tc&&Math.hypot(t.x-tc.x,t.z-tc.z)<22)ai.alarm={x:t.x,z:t.z,t:time}}
   if(t.kind==='unit'&&t.d.mil&&!t.d.siege&&!t.d.noAtk&&!t.order&&src&&!src.dead&&canHit(t,src))t.order={type:'attack',target:src,auto:true};
+  // 守護模式：直攻城堡的敵人被我方單位打到時還手幾秒（不追遠處的攻擊者，還手完有短暫間隔）
+  if(GRD&&t.gw&&t.kind==='unit'&&!t.d.siege&&!t.d.noAtk&&src&&!src.dead&&src.kind==='unit'&&!(t.order&&(t.order.gret||t.order.ghunt))&&time>(t.gw.retCd||0)&&canHit(t,src)&&distTo(t,src)<=rangeOf(t)+3){t.order={type:'attack',target:src,gret:1};t.pathFor=null;t.gw.retT=time+4}
   // 嗜血：近戰攻擊回復傷害 20%
   if(src&&!src.dead&&src.kind==='unit'&&!src.d.proj&&has(src.team,'bloodlust'))src.hp=Math.min(src.maxhp,src.hp+dmg*0.2);
   t.hitT=time;
@@ -3215,8 +3351,10 @@ function updUnit(u,dt){
   // 中毒：持續損失生命
   if(u.poisonT>time){u.hp-=2*dt;if(u.hp<=0){damage(u,1,u.poisonSrc&&!u.poisonSrc.dead?u.poisonSrc:null);return}}
   if(u.hp<u.maxhp&&isNat(u.team,'holy')&&time-(u.hitT||-99)>4)u.hp=Math.min(u.maxhp,u.hp+NB.holyRegen*dt);
+  if(u.king&&u.hp<u.maxhp&&time-(u.hitT||-99)>5)u.hp=Math.min(u.maxhp,u.hp+3*dt);   // 領主脫戰回復
   const o=u.order;
   if(!o){
+    if(u.gw){grdGo(u);return}
     if(u.d.mil&&!u.d.noAtk){u.scanT-=dt;if(u.scanT<=0){u.scanT=0.5;const t=u.d.siege?findBld(u,sightOf(u)+2):findEnemy(u,sightOf(u),false);if(t)u.order={type:'attack',target:t,auto:true};
       // 自己的視野內沒有敵人，但我方其他單位或建築看得到入侵者：主動過去迎擊（邊走邊打）
       else if(!ADV&&!u.d.siege){const L=INTR[u.team];if(L&&L.length){let b=null,bd=DEF_R;for(const o of L){if(o.dead||!canHit(u,o))continue;const d=Math.hypot(o.x-u.x,o.z-u.z);if(d<bd){bd=d;b=o}}if(b)orderMove(u,b.x,b.z,true)}}}}
@@ -3227,7 +3365,7 @@ function updUnit(u,dt){
     const t=o.target;
     if(t.dead||(o.auto&&distTo(u,t)>sightOf(u)+4)){u.pathFor=null;
       // 目標陣亡後接著打：原本打單位就找視野內的下一個敵人；原本打建築就找附近的下一棟建築
-      if(t.dead&&!u.d.noAtk){const r=sightOf(u),nt=t.kind==='bld'?(findBld(u,r+2)||findEnemy(u,r,false)):(u.d.siege?findBld(u,r+2):findEnemy(u,r,true));
+      if(t.dead&&!u.d.noAtk&&!u.gw){const r=sightOf(u),nt=t.kind==='bld'?(findBld(u,r+2)||findEnemy(u,r,false)):(u.d.siege?findBld(u,r+2):findEnemy(u,r,true));
         if(nt){u.order={type:'attack',target:nt,auto:o.auto,resume:o.resume};return}}
       if(o.resume){u.order=o.resume;setPath(u,o.resume.x,o.resume.z)}else u.order=null;return}
     if(approach(u,t,rangeOf(u),dt)){u.face=Math.atan2(t.x-u.x,t.z-u.z);if(u.cdT<=0){u.cdT=u.d.cd*(u.cm||1);strike(u,t)}}
@@ -3299,19 +3437,21 @@ function updBuilding(b,dt){
   if(!b.done){growMesh(b);return}
   const tm=teams[b.team];
   if(b.queue.length){
-    const q=b.queue[0],it=itemDef(q),tt=timeOf(q,b.team);b.trainT+=dt;
+    // ow：排這一項的玩家（守護模式共用建築時可能不是建築的主人）
+    const q=b.queue[0],it=itemDef(q),qo=qOwn(b),ow=qo[0]!=null&&active[qo[0]]?qo[0]:b.team,otm=teams[ow],tt=timeOf(q,ow);b.trainT+=dt;
     if(b.trainT>=tt){
       if(q[0]==='#'){
-        b.trainT=0;b.queue.shift();const id=q.slice(1);tm.tech[id]=1;delete tm.res[id];refreshMaxHp(b.team);
-        {const s=stats[b.team];s.techs++;s.techVal=(s.techVal||0)+costSum(TECH[id].cost);if(id==='age2')s.ageT[1]=time;if(id==='age3')s.ageT[2]=time}
-        if(id==='age2')tm.age=Math.max(tm.age,2);if(id==='age3')tm.age=3;
-        if(b.team===myTeam)techDone(id);
+        b.trainT=0;b.queue.shift();qo.shift();const id=q.slice(1);
+        // 守護模式：科技完成後全隊生效（包含時代）
+        for(const g of (GRD&&sides[ow]===0?grdTeams():[ow])){const gt=teams[g];gt.tech[id]=1;delete gt.res[id];if(id==='age2')gt.age=Math.max(gt.age,2);if(id==='age3')gt.age=3;refreshMaxHp(g)}
+        {const s=stats[ow];s.techs++;s.techVal=(s.techVal||0)+costSum(TECH[id].cost);if(id==='age2')s.ageT[1]=time;if(id==='age3')s.ageT[2]=time}
+        if(ow===myTeam||(GRD&&!hostile(ow,myTeam)))techDone(id);
         pxFx('fx_levelup',b.x,b.h*0.6+0.5,b.z,id.slice(0,3)==='age'?2.6:1.8);
-      }else if(tm.pop+(it.pop||1)<=capOf(b.team)){
-        b.trainT=0;b.queue.shift();
+      }else if(otm.pop+(it.pop||1)<=capOf(ow)){
+        b.trainT=0;b.queue.shift();qo.shift();
         const f=nearFree(ti(b.x+(Math.random()*2-1)),b.tz+b.s);
-        const u=addUnit(q,b.team,f.x+(Math.random()-0.5)*0.3,f.z+(Math.random()-0.5)*0.3);
-        {const s=stats[b.team];if(q==='villager')s.vills++;else s.trained++}
+        const u=addUnit(q,ow,f.x+(Math.random()-0.5)*0.3,f.z+(Math.random()-0.5)*0.3);
+        {const s=stats[ow];if(q==='villager')s.vills++;else s.trained++}
         const r=b.rally;
         if(r){if(r.target&&!r.target.dead&&q==='villager'&&orderGather(u,r.target)){}else orderMove(u,r.x,r.z)}
       }else b.trainT=tt;
@@ -3365,7 +3505,8 @@ function execCmd(team,c,slot){
     c=Object.assign({},c,{ids:(Array.isArray(c.ids)?c.ids:[]).filter(i=>{const e=byId.get(i);return e&&e.hero===(slot|0)}),form:null})}
   const us=(Array.isArray(c.ids)?c.ids:[]).map(i=>byId.get(i)).filter(e=>e&&!e.dead&&e.team===team&&e.kind==='unit');
   const t=c.target?deref(c.target):null,tm=teams[team];
-  const b=c.bid?byId.get(c.bid):null,own=b&&!b.dead&&b.team===team&&b.kind==='bld';
+  // own：可以使用這棟建築（自己的；守護模式中也包含盟友的）
+  const b=c.bid?byId.get(c.bid):null,own=b&&!b.dead&&b.kind==='bld'&&shareB(team,b);
   switch(c.c){
     case 'move':{
       const gx=clampW(c.x),gz=clampW(c.z);
@@ -3378,7 +3519,8 @@ function execCmd(team,c,slot){
         us.forEach((u,i)=>{let x=gx+((i%cols)-(cols-1)/2)*0.75,z=gz+((i/cols|0)-(rows-1)/2)*0.75;if(!u.d.fly&&blk(x,z)){x=gx;z=gz}orderMove(u,clampW(x),clampW(z),c.amove)});
       }
       break}
-    case 'attack':if(t&&!t.dead&&hostile(t.team,team))us.forEach(u=>{if(canHit(u,t)&&!u.d.noAtk)orderAttack(u,t);else orderMove(u,t.x,t.z)});break;
+    case 'attack':if(vrPeace()){if(team===myTeam)toast((vrLock()?'探路期':'和平條約期間')+'不能攻擊（剩 '+fmtT(Math.ceil(vrPeaceLeft()))+'）');return}
+      if(t&&!t.dead&&hostile(t.team,team))us.forEach(u=>{if(canHit(u,t)&&!u.d.noAtk)orderAttack(u,t);else orderMove(u,t.x,t.z)});break;
     case 'trade':{
       // 黑市：100 單位換 70 單位
       const R=['food','wood','gold'];if(!own||!b.done||!b.d.trade||!R.includes(c.from)||!R.includes(c.to)||c.from===c.to||tm[c.from]<100)return;
@@ -3394,27 +3536,36 @@ function execCmd(team,c,slot){
         pay(team,d.cost);const nb=addBuilding(c.b,team,tx,tz,false);if(!first)first=nb}
       if(first)us.forEach(u=>{if(u.type==='villager')orderBuild(u,first)});break}
     case 'pause':paused=!paused;break;
-    case 'drop':if(t&&!t.dead&&t.kind==='bld'&&t.team===team&&t.d.drop&&t.done)us.forEach(u=>{
+    case 'drop':if(t&&!t.dead&&t.kind==='bld'&&shareB(team,t)&&t.d.drop&&t.done)us.forEach(u=>{
         if(u.type==='villager'&&u.carry>0&&u.order&&u.order.type==='gather'){u.order.phase='drop';u.order.drop=t;u.pathFor=null}else orderMove(u,clampW(c.x),clampW(c.z))});break;
     case 'place':{
       const d=BLD[c.b];if(!d||bAge(team,c.b)>tm.age||!natOk(team,d))return;
-      if(c.b==='tc'&&!canBuildTc(team))return;
+      if(vrLock()){if(team===myTeam)toast('探路期還不能建造（剩 '+fmtT(Math.ceil(VR.lock-time))+'），先派斥候和村民找營地');return}
+      if(c.b==='tc'&&(GRD||!canBuildTc(team)))return;   // 守護模式全隊共用城堡，不能另蓋城鎮中心
+      if(c.b==='wonder'&&VR.mode!=='wonder')return;
       if(c.b==='house'&&popRoomFull(team))return;
       const tx=c.tx|0,tz=c.tz|0;if(!freeRect(tx,tz,d.size)||!afford(team,d.cost))return;
       pay(team,d.cost);const nb=addBuilding(c.b,team,tx,tz,false);us.forEach(u=>{if(u.type==='villager')orderBuild(u,nb)});break}
     case 'train':{
       const d=UNITS[c.u];if(!own||!b.done||!d||!natOk(team,d)||!b.d.trains||!b.d.trains.includes(c.u)||(d.age||1)>tm.age||b.queue.length>=QMAX||!afford(team,d.cost))return;
-      pay(team,d.cost);b.queue.push(c.u);break}
+      pay(team,d.cost);{const qo=qOwn(b);b.queue.push(c.u);qo.push(team)}break}
     case 'research':{
       const T=TECH[c.tech];if(!own||!b.done||!T||T.at!==b.type||!techAvail(team,c.tech)||b.queue.length>=QMAX||!afford(team,T.cost))return;
-      pay(team,T.cost);b.queue.push('#'+c.tech);tm.res[c.tech]=1;break}
-    case 'cancel':if(own&&b.queue.length){const q=b.queue.pop();pay(team,itemDef(q).cost,-1);if(q[0]==='#')delete tm.res[q.slice(1)];if(!b.queue.length)b.trainT=0}break;
-    case 'rally':(Array.isArray(c.bids)?c.bids:[]).forEach(i=>{const e=byId.get(i);if(e&&e.team===team&&e.kind==='bld'&&e.d.trains)e.rally={x:clampW(c.x),z:clampW(c.z),target:t&&!t.dead?t:null}});break;
+      pay(team,T.cost);{const qo=qOwn(b);b.queue.push('#'+c.tech);qo.push(team)}tm.res[c.tech]=1;break}
+    // 取消：只能取消自己排進佇列的項目（佇列中最後一個屬於自己的），資源退還給自己
+    case 'cancel':if(own&&b.queue.length){const qo=qOwn(b);let k=-1;for(let i=b.queue.length-1;i>=0;i--)if(qo[i]===team){k=i;break}if(k<0)return;
+      const q=b.queue.splice(k,1)[0];qo.splice(k,1);pay(team,itemDef(q).cost,-1);if(q[0]==='#')delete tm.res[q.slice(1)];if(k===0)b.trainT=0}break;
+    // 贈送資源給盟友（每次 100）
+    case 'gift':{const to=c.to|0,r=c.r;if(!['food','wood','gold'].includes(r)||to===team||!active[to]||hostile(to,team)||tm[r]<100)return;
+      tm[r]-=100;teams[to][r]+=100;const msg='🎁 '+kname(team)+' 送給 '+kname(to)+' 100 '+GIFT_N[r];if(net.role==='host')pendEv.push(msg);if(to===myTeam||team===myTeam)toast(msg);break}
+    case 'rally':(Array.isArray(c.bids)?c.bids:[]).forEach(i=>{const e=byId.get(i);if(e&&shareB(team,e)&&e.kind==='bld'&&e.d.trains)e.rally={x:clampW(c.x),z:clampW(c.z),target:t&&!t.dead?t:null}});break;
     case 'stop':us.forEach(u=>{u.order=null;u.path=null});break;
     case 'kill':(Array.isArray(c.ids)?c.ids:[]).forEach(i=>{const e=byId.get(i);if(e&&e.team===team)kill(e)});break;
   }
 }
 function cmd(c){if(net.role==='client')net.send({t:'cmd',c});else execCmd(myTeam,c,advSlot)}
+// 佇列中每一項是誰排的（守護模式共用建築時，訓練出的單位歸排隊的人，研究完成也記在他名下）
+function qOwn(b){if(!b.qt||b.qt.length!==b.queue.length)b.qt=b.queue.map((_,i)=>(b.qt&&b.qt[i]!=null)?b.qt[i]:b.team);return b.qt}
 
 /* ================= 電腦對手 ================= */
 function findSite(c,s){
@@ -3431,13 +3582,15 @@ function aiResign(A){if(!ais[A])return;ais[A]=null;teams[A].out=true;announce(kn
   for(const e of ents.slice())if(!e.dead&&e.team===A)damage(e,e.hp+99999,null);checkVictory()}
 function aiTick(A,ai){
   const tm=teams[A],diff=ai.diff,mine=ents.filter(e=>e.team===A&&!e.dead);
-  const tc=mine.find(e=>e.type==='tc');ai.tc=tc;
+  // 守護模式的電腦隊友沒有自己的城鎮中心，以全隊共用的城堡為中心發展
+  const tc=GRD?grdCastle():mine.find(e=>e.type==='tc');ai.tc=tc;if(GRD&&(!tc||tc.dead))return;
   // 城鎮中心全毀：資源足夠就讓所有村民回原址附近重建
   // 參考《世紀帝國》的電腦：村民繼續用倉庫存放資源、優先伐木，木材夠了就重建；沒有倉庫先蓋倉庫；完全無法翻身時投降
   if(!tc){const vs=mine.filter(e=>e.type==='villager'),home=ai.home||(vs[0]&&{x:vs[0].x,z:vs[0].z});
     const site=mine.find(e=>e.kind==='bld'&&!e.done),drop=mine.some(e=>e.kind==='bld'&&e.done&&e.d.drop);
     const free=()=>vs.filter(v=>!v.order||v.order.type==='gather');
     if(site){const n=vs.filter(v=>v.order&&v.order.type==='build'&&v.order.b===site).length;free().slice(0,Math.max(0,(site.type==='tc'?4:2)-n)).forEach(v=>orderBuild(v,site))}
+    else if(vrLock()){}   // 遊牧探路期：還不能建造，村民已在前往營地的路上
     else if(home&&vs.length&&afford(A,BLD.tc.cost)){const loc=findSite(home,BLD.tc.size);if(loc){pay(A,BLD.tc.cost);const nb=addBuilding('tc',A,loc.tx,loc.tz,false);free().slice(0,4).forEach(v=>orderBuild(v,nb))}}
     else if(home&&vs.length&&!drop&&afford(A,BLD.store.cost)){const loc=findSite(home,BLD.store.size);if(loc){pay(A,BLD.store.cost);const nb=addBuilding('store',A,loc.tx,loc.tz,false);free().slice(0,2).forEach(v=>orderBuild(v,nb))}}
     // 有地方存放資源：閒置的村民去採集，木材不夠重建時優先伐木
@@ -3447,15 +3600,24 @@ function aiTick(A,ai){
     if(!hopeless)ai.hopeT=null;else{if(ai.hopeT==null)ai.hopeT=time;else if(time-ai.hopeT>60)aiResign(A)}
     return}
   ai.hopeT=null;
-  ai.home={x:tc.x,z:tc.z};
-  const vills=mine.filter(e=>e.type==='villager'),army=mine.filter(e=>e.kind==='unit'&&e.d.mil),blds=mine.filter(e=>e.kind==='bld');
+  ai.home={x:tc.x,z:tc.z};ai.tc=tc;
+  const vills=mine.filter(e=>e.type==='villager'),army=mine.filter(e=>e.kind==='unit'&&e.d.mil&&!e.king),blds=mine.filter(e=>e.kind==='bld');
+  // 守護領主：領主留在城鎮中心旁邊，不跟著出征
+  if(VR.mode==='king'){const k=vrKing(A);if(k&&(!k.order||k.order.type==='move')&&Math.hypot(k.x-tc.x,k.z-tc.z)>6)orderMove(k,tc.x+0.5,tc.z+3.2)}
   const tryRes=(b,id)=>{if(b.done&&!b.queue.length&&TECH[id].at===b.type&&techAvail(A,id)&&afford(A,TECH[id].cost)){execCmd(A,{c:'research',bid:b.id,tech:id});return true}return false};
   let saving=false;
   const S=ai.S||STRATS.balanced,armyCap=time<S.armyT?Math.min(3,diff.armyMax):diff.armyMax;
   if(tm.age===1&&vills.length>=8&&time>S.age2T){saving=!tm.res.age2;tryRes(tc,'age2')}
   else if(tm.age===2&&time>S.age3T){saving=!tm.res.age3;tryRes(tc,'age3')}
-  if(!saving&&vills.length<diff.vills&&!tc.queue.length&&afford(A,UNITS.villager.cost))execCmd(A,{c:'train',bid:tc.id,u:'villager'});
-  const cnt={food:0,wood:0,gold:0},wt={food:0.4,wood:0.33,gold:0.27};
+  // 奇觀競賽：進入神話時代後存資源蓋奇觀（存錢期間不訓練、不研究）
+  const wonderGoal=VR.mode==='wonder'&&tm.age>=3&&!blds.some(b=>b.type==='wonder');if(wonderGoal&&!afford(A,BLD.wonder.cost))saving=true;
+  // 飢荒時代：存糧不到一分鐘的消耗量（外加 60）時不訓練軍隊也不研究，只補村民；採集比重偏向食物
+  const fam=VR.mode==='famine',eat=fam?tm.pop*VR.eat:0,lean=fam&&tm.food<60+eat*60;
+  if((!saving||lean)&&vills.length<diff.vills&&!tc.queue.length&&tm.food>=UNITS.villager.cost.food+(fam?eat*20:0)&&afford(A,UNITS.villager.cost))execCmd(A,{c:'train',bid:tc.id,u:'villager'});
+  if(lean)saving=true;
+  const cnt={food:0,wood:0,gold:0},wt=fam?{food:lean?0.7:0.5,wood:0.28,gold:0.22}:{food:0.4,wood:0.33,gold:0.27};
+  // 飢荒時代斷糧在即：把伐木與採金的村民調去採食物
+  if(lean&&tm.food<eat*25)for(const v of vills){if(v.order&&v.order.type==='gather'&&v.order.rtype!=='food'&&!v.carry){v.order=null}}
   vills.forEach(v=>{if(v.order&&v.order.type==='gather')cnt[v.order.rtype]++});
   for(const v of vills){
     if(v.order)continue;
@@ -3465,9 +3627,10 @@ function aiTick(A,ai){
   const site=blds.find(b=>!b.done),count=t=>blds.filter(b=>b.type===t).length;
   if(!site){
     let berries=0;for(const n of nodes)if(!n.dead&&n.rtype==='food'&&Math.hypot(n.x-tc.x,n.z-tc.z)<16)berries++;
-    const farmsWant=berries?(vills.length>=9?2:0):6;
+    const farmsWant=Math.max(berries?(vills.length>=9?2:0):6,fam?Math.min(10,2+Math.ceil(eat/0.8)):0);
     let want=null;
-    if(capOf(A)-tm.pop<=3&&!popRoomFull(A))want='house';
+    if(wonderGoal)want='wonder';
+    else if(capOf(A)-tm.pop<=3&&!popRoomFull(A))want='house';
     else if(!count('barracks')&&vills.length>=5)want='barracks';
     else if(count('farm')<farmsWant)want='farm';
     else if((tm.age>=2||time>300)&&!count('smithy'))want='smithy';
@@ -3479,8 +3642,10 @@ function aiTick(A,ai){
       const loc=findSite(tc,BLD[want].size),v=vills.find(x=>!x.order||x.order.type==='gather');
       if(loc&&v){pay(A,BLD[want].cost);orderBuild(v,addBuilding(want,A,loc.tx,loc.tz,false))}
     }
-  }else if(!vills.some(v=>v.order&&v.order.type==='build'&&v.order.b===site)){
-    const v=vills.find(x=>!x.order||x.order.type==='gather');if(v)orderBuild(v,site);
+  }else{
+    // 建造中的建築：一般派 1 位村民，奇觀派 6 位
+    const n=vills.filter(v=>v.order&&v.order.type==='build'&&v.order.b===site).length,need=site.type==='wonder'?6:1;
+    if(n<need)vills.filter(x=>!x.order||x.order.type==='gather').slice(0,need-n).forEach(v=>orderBuild(v,site));
   }
   for(const b of blds){
     if(!b.done||b.queue.length||saving)continue;
@@ -3504,9 +3669,19 @@ function aiTick(A,ai){
     }
   }
   const idle=army.filter(u=>!u.order);
+  if(GRD){grdAiArmy(A,army,tc);return}
+  // 奇觀競賽：敵方奇觀完成後，全軍立刻去拆
+  const foeW=VR.mode==='wonder'?ents.find(e=>!e.dead&&e.type==='wonder'&&e.done&&hostile(e.team,A)):null;
   if(ai.alarm&&time-ai.alarm.t<6){idle.forEach(u=>{if(Math.hypot(u.x-ai.alarm.x,u.z-ai.alarm.z)>3)orderMove(u,ai.alarm.x,ai.alarm.z,true)})}
+  else if(foeW&&army.length){army.forEach(u=>{if(!u.order||u.order.type==='move')orderMove(u,foeW.x,foeW.z,true)})}
+  // 聖地爭奪：首攻時間到了之後，閒置的軍隊都去聖地駐守
+  // 每個單位有固定負責的聖地（分兵）；負責的聖地已佔領時，一半留守、一半去支援最近的未佔領聖地
+  else if(VR.mode==='hill'&&!vrPeace()&&time>diff.grace*0.6){const sd=sides[A],S=VR.sites,need=S.map((_,i)=>i).filter(i=>VR.owner[i]!==sd),dS=(u,j)=>Math.hypot(u.x-S[j].x,u.z-S[j].z);
+    idle.forEach(u=>{let i=u.id%S.length;if(VR.owner[i]===sd&&need.length&&(u.id/S.length|0)%2)i=need.reduce((b,j)=>dS(u,j)<dS(u,b)?j:b,need[0]);
+      const C=S[i];if(dS(u,i)>VR_HILL_R-1)orderMove(u,C.x+(Math.random()-0.5)*4,C.z+(Math.random()-0.5)*4,true)})}
+  else if(vrPeace()){}
   else if(time>=ai.nextAttack&&army.length>=ai.waveSize){
-    const tg=nearestTarget(tc,A,true);
+    const tg=VR.mode==='king'&&time>600&&Math.random()<0.5?(TEAMS.filter(t=>hostile(t,A)).map(vrKing).filter(Boolean)[0]||nearestTarget(tc,A,true)):nearestTarget(tc,A,true);
     if(tg){army.forEach(u=>orderMove(u,tg.x,tg.z,true));ai.waveSize=Math.min(diff.maxWave,ai.waveSize+2);ai.nextAttack=time+diff.interval*(0.8+Math.random()*0.45);
       announce('⚔️ '+kname(A)+'正在進攻'+kname(tg.team));}
   }else idle.forEach(u=>{if(Math.hypot(u.x-tc.x,u.z-tc.z)>24){const tg=nearestTarget(u,A,false);if(tg)orderMove(u,tg.x,tg.z,true)}});
@@ -3527,10 +3702,10 @@ function makeSnap(){
   for(const e of ents){
     if(e.dead)continue;
     if(e.kind==='unit')u.push([e.id,e.type,e.team,r2(e.x),r2(e.z),Math.ceil(e.hp),r2(e.face),(e.moving?1:0)|(e.working?2:0)|(e.order?0:4)|(e.working?WK.indexOf(workKind(e))<<3:0),e.carry,e.carryType||'',e.atkSeq,e.hero==null?-1:e.hero,ADV?e.maxhp:0]);
-    else b.push([e.id,e.type,e.team,e.tx,e.tz,Math.ceil(e.hp),r2(e.progress),e.done?1:0,e.queue.slice(),r2(e.trainT),e.rally?[r2(e.rally.x),r2(e.rally.z)]:0]);
+    else b.push([e.id,e.type,e.team,e.tx,e.tz,Math.ceil(e.hp),r2(e.progress),e.done?1:0,e.queue.slice(),r2(e.trainT),e.rally?[r2(e.rally.x),r2(e.rally.z)]:0,GRD?qOwn(e).slice():0]);
   }
   const na=[];dirtyNodes.forEach(n=>{if(!n.dead)na.push([n.nid,n.amount])});dirtyNodes.clear();
-  return{t:'s',time:r2(time),p:paused?1:0,tm:teams.map(t=>[t.food,t.wood,t.gold,t.pop,t.cap,t.age,Object.keys(t.tech),Object.keys(t.res)]),u,b,nd:deadNodes.splice(0),na,fx:pendFx.splice(0),ev:pendEv.splice(0),ad:ADV?advSnap():0};
+  return{t:'s',time:r2(time),p:paused?1:0,tm:teams.map(t=>[t.food,t.wood,t.gold,t.pop,t.cap,t.age,Object.keys(t.tech),Object.keys(t.res)]),u,b,nd:deadNodes.splice(0),na,fx:pendFx.splice(0),ev:pendEv.splice(0),ad:ADV?advSnap():0,gd:GRD?grdSnap():0,vr:VR.mode!=='std'?vrSnap():0};
 }
 const CL_BUSY={type:'remote'};
 function applySnap(s){
@@ -3544,10 +3719,10 @@ function applySnap(s){
   }
   for(const a of s.b){
     let e=byId.get(a[0]);if(!e){if(!BLD[a[1]])continue;e=addBuilding(a[1],a[2],a[3],a[4],false,a[0])}
-    seen.add(a[0]);if(a[5]<e.hp&&e.team===myTeam&&a[7])alertAt(e);
+    seen.add(a[0]);if(a[5]<e.hp&&(e.team===myTeam||e.castle)&&a[7])alertAt(e);
     e.hp=a[5];e.progress=a[6];
     if(a[7]){if(!e.done){e.done=true;growMesh(e)}}else growMesh(e);
-    e.queue=a[8];e.trainT=a[9];e.rally=a[10]?{x:a[10][0],z:a[10][1]}:null;
+    e.queue=a[8];e.trainT=a[9];e.rally=a[10]?{x:a[10][0],z:a[10][1]}:null;e.qt=Array.isArray(a[11])?a[11]:null;
   }
   for(const e of ents)if(!e.dead&&!seen.has(e.id))kill(e);
   s.nd.forEach(i=>killNode(nodeById[i]));
@@ -3560,6 +3735,8 @@ function applySnap(s){
   // 冒險模式的生命上限由主機決定（上面的 refreshMaxHp 會重算，這裡再套回主機的值）
   if(ADV)for(const e of ents)if(e.mh)e.maxhp=e.mh;
   if(s.ad&&ADV)advApply(s.ad);
+  if(s.gd&&GRD)grdApply(s.gd);
+  if(s.vr)vrApply(s.vr);
 }
 function onNetData(m,conn){
   if(!m||typeof m!=='object')return;
@@ -3583,6 +3760,7 @@ function onNetData(m,conn){
     // 有新玩家加入時播放提示音
     const before=room.joined.filter(Boolean).length,after=(m.joined||[]).filter(Boolean).length;if(after>before&&before>0)sfx('confirm',0.6);
     room.ready=TEAMS.map(i=>!!(m.ready||[])[i]);room.peers=Array.isArray(m.peers)?m.peers:[];
+    room.grd=!!m.grd;room.glen=GRD_LEN[m.glen]?m.glen:'std';room.gdiff=GRD_DIFF[m.gdiff]?m.gdiff:'normal';room.vr=VR_NAME[m.vr]?m.vr:'std';
     room.adv=!!m.adv;room.cls=TEAMS.map(i=>ADV_CLS[(m.cls||[])[i]]?m.cls[i]:'sword');room.pts=TEAMS.map(i=>advCleanPts((m.pts||[])[i],room.cls[i]));
     room.slots=m.slots;room.joined=m.joined;room.you=m.you;room.names=(m.names||[]).map(cleanName);room.nat=!!m.nat;if(m.fog!==undefined)$('o-fog').checked=!!m.fog;room.nats=TEAMS.map(i=>NATS[(m.nats||[])[i]]?m.nats[i]:'rand');
     room.count=Math.max(2,Math.min(MAXT,m.count|0||2));room.colors=TEAMS.map(i=>{const c=(m.colors||[])[i]|0;return c>=0&&c<PALETTE.length?c:i});
@@ -3590,13 +3768,14 @@ function onNetData(m,conn){
   else if(m.t==='full'&&!running){if(net.onFull){const f=net.onFull;net.onSeat=net.onFull=null;f()}else netMsg('房間沒有開放的位置，或已被房主移出。')}
   else if(m.t==='start'&&!running&&!ended)startGame(m.seed>>>0,'client',m.cfg,m.you,m.opts);
   else if(m.t==='s'&&running)applySnap(m);
+  else if(m.t==='elim'&&running)elimNote();
   else if(m.t==='end'&&!ended){
     // 加入方沒有模擬，統計資料由房主在結束時一次傳來
     if(Array.isArray(m.stats))m.stats.slice(0,4).forEach((s,i)=>{if(!s||typeof s!=='object')return;const d=stats[i];
       for(const k in d){if(k==='hist'){if(Array.isArray(s.hist))d.hist=s.hist.filter(p=>Array.isArray(p)).map(p=>[+p[0]||0,+p[1]||0,+p[2]||0])}
         else if(k==='ageT'){if(Array.isArray(s.ageT))d.ageT=s.ageT.slice(0,3).map(v=>v==null?null:+v||0)}else d[k]=+s[k]||0}
       d.techVal=+s.techVal||0});
-    ended=true;running=false;showEnd(m.winner===sides[myTeam]);
+    ended=true;running=false;showEnd(m.winner===sides[myTeam],typeof m.txt==='string'&&m.txt?m.txt.slice(0,120):undefined);
   }
 }
 
@@ -3605,7 +3784,7 @@ let kicked=false;
 const room={host:false,you:0,count:2,joined:TEAMS.map(i=>i===0),names:TEAMS.map(()=>''),nat:false,nats:TEAMS.map(()=>'rand'),ready:TEAMS.map(()=>false),peers:[],
   colors:TEAMS.slice(),
   slots:TEAMS.map(i=>({kind:i===0?'host':i===1?'open':'normal',side:i}))};
-room.adv=false;room.cls=[];room.pts=[];
+room.adv=false;room.cls=[];room.pts=[];room.grd=false;room.glen='std';room.gdiff='normal';room.vr='std';
 const SLOT_KINDS=[['open','開放給玩家'],['beginner','電腦・新手'],['easy','電腦・簡單'],['normal','電腦・普通'],['hard','電腦・困難'],['expert','電腦・專家']];
 // 連線訊息；在房間內時前面固定顯示房間代碼與複製按鈕
 let roomCode='',leaving=false;
@@ -3630,7 +3809,7 @@ function leaveLobby(to){
   for(const c of net.conns){try{c.close()}catch(_){}}if(net.conn){try{net.conn.close()}catch(_){}}
   if(net.peer){try{net.peer.destroy()}catch(_){}}
   net.peer=null;net.conn=null;net.conns=[];net.role='solo';roomCode='';kicked=false;hostRun++;joinRun++;net.onSeat=net.onFull=null;
-  room.host=false;room.adv=false;room.you=0;room.joined=TEAMS.map(i=>i===0);room.ready=TEAMS.map(()=>false);room.names=TEAMS.map(()=>'');room.peers=[];room.nats=TEAMS.map(()=>'rand');room.nats[0]=myNat;
+  room.host=false;room.adv=false;room.grd=false;room.you=0;room.joined=TEAMS.map(i=>i===0);room.ready=TEAMS.map(()=>false);room.names=TEAMS.map(()=>'');room.peers=[];room.nats=TEAMS.map(()=>'rand');room.nats[0]=myNat;
   room.slots=TEAMS.map(i=>({kind:i===0?'host':i===1?'open':'normal',side:i}));
   lobbyBusy(false);document.querySelectorAll('[data-diff]').forEach(x=>x.disabled=false);
   $('b-cancel').hidden=true;$('room-chat-log').textContent='';$('room-voice').textContent='';updateVoiceBtn();
@@ -3648,7 +3827,7 @@ function fixColors(){for(const i of TEAMS)if(slotOn(i)&&colorTaken(room.colors[i
   const owner=TEAMS.find(j=>j<i&&slotOn(j)&&room.colors[j]===room.colors[i]);if(owner!=null)room.colors[i]=firstFreeColor(i)}}
 // 房間內每位真人玩家的連線代號（語音用）
 function lobbyPeers(){return TEAMS.map(i=>i===0?(net.peer&&net.peer.id)||null:((net.conns.find(c=>c.team===i&&c.open)||{}).peer||null))}
-function sendLobby(){room.peers=lobbyPeers();for(const c of net.conns)if(c.open)c.send({t:'lobby',slots:room.slots,count:room.count,joined:room.joined,names:room.names,nat:room.nat,nats:room.nats,colors:room.colors,fog:$('o-fog').checked,ready:room.ready,peers:room.peers,adv:room.adv,cls:room.cls,pts:room.pts,you:c.team});
+function sendLobby(){room.peers=lobbyPeers();for(const c of net.conns)if(c.open)c.send({t:'lobby',slots:room.slots,count:room.count,joined:room.joined,names:room.names,nat:room.nat,nats:room.nats,colors:room.colors,fog:$('o-fog').checked,ready:room.ready,peers:room.peers,adv:room.adv,cls:room.cls,pts:room.pts,grd:room.grd,glen:room.glen,gdiff:room.gdiff,vr:room.vr,you:c.team});
   if(room.host)lobbyVoice()}
 // 所有已加入的玩家都按下「已準備好」
 const allReady=()=>TEAMS.every(i=>!(i>0&&slotOn(i)&&room.slots[i].kind==='open'&&room.joined[i])||room.ready[i]);
@@ -3669,14 +3848,14 @@ function renderRoom(){prepTreeLabel();
   for(const i of TEAMS){if(!slotOn(i)||i===0)continue;const k=room.slots[i].kind;if(k==='open'){if(room.joined[i])humans++;else empty++}else if(DIFFS[k])ai++}
   $('room-stats').textContent='真人 '+humans+' 人・電腦 '+ai+' 國・空位 '+empty+' 個';
   let h='<div class="slot-head"><label for="room-count">王國數量</label>'+
-    '<select id="room-count"'+(room.host?'':' disabled')+'>'+[2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'"'+(n===(pendCount||room.count)?' selected':'')+'>'+n+' 國</option>').join('')+'</select>'+
+    '<select id="room-count"'+(room.host?'':' disabled')+'>'+(room.grd?[2,3,4]:[2,3,4,5,6,7,8,9,10]).map(n=>'<option value="'+n+'"'+(n===(pendCount||room.count)?' selected':'')+'>'+n+' 國</option>').join('')+'</select>'+
     '<span class="sh-note">地圖 '+ms+'×'+ms+' 格'+(room.host?'':'・由房主設定')+'</span></div>';
   // 縮減王國數量會移出已加入的玩家時，先列出來讓房主確認
   if(pendCount!=null){const out=TEAMS.filter(i=>i>0&&i>=pendCount&&room.joined[i]&&room.slots[i].kind==='open');
     h+='<div class="slot-warn" role="alert">改成 '+pendCount+' 國會把這些玩家移出房間：<b>'+out.map(i=>cleanName(room.names[i])||'第 '+(i+1)+' 位').join('、')+'</b><span><button type="button" class="kick" data-pend="ok">確定移出</button><button type="button" class="kick" data-pend="no">取消</button></span></div>'}
   // 同隊底色：同一隊有兩個以上的位置時，整隊用該隊第一位的代表色當底色
   const sideFirst={},sideN={};for(const i of TEAMS){if(!slotOn(i))continue;const sd=room.slots[i].side;sideN[sd]=(sideN[sd]||0)+1;if(sideFirst[sd]==null)sideFirst[sd]=i}
-  const teamBg=sd=>{if(room.adv||sideN[sd]<2)return '';const c=PALETTE[room.colors[sideFirst[sd]]][1],r=c>>16&255,g=c>>8&255,b=c&255;return ' style="background:rgba('+r+','+g+','+b+',.2);box-shadow:inset 6px 0 0 '+hexCss(c)+'"'};
+  const teamBg=sd=>{if(room.adv||room.grd||sideN[sd]<2)return '';const c=PALETTE[room.colors[sideFirst[sd]]][1],r=c>>16&255,g=c>>8&255,b=c&255;return ' style="background:rgba('+r+','+g+','+b+',.2);box-shadow:inset 6px 0 0 '+hexCss(c)+'"'};
   h+='<div class="slot slot-cols" aria-hidden="true"><span>玩家</span><span>代表色</span><span>'+(room.adv?'職業':'國家')+'</span><span>'+(room.adv?'身分':'位置')+'</span><span>'+(room.adv?'':'隊伍')+'</span><span>狀態</span></div>';
   for(const i of TEAMS){
     if(!slotOn(i))continue;const s=room.slots[i];
@@ -3701,6 +3880,8 @@ function renderRoom(){prepTreeLabel();
     if(room.adv){const cl=room.cls[i]||'sword';
       natSel=waiting?'<span class="s-ro">—</span>':i===room.you?'<select id="slot-cls-'+i+'" data-slot="'+i+'" data-f="cls" aria-label="職業">'+ADV_CLS_IDS.map(k=>'<option value="'+k+'"'+(k===cl?' selected':'')+'>'+ADV_CLS[k].name+'</option>').join('')+'</select>':'<span class="s-ro s-nat">'+ico('icon_unit_'+cl,'',24)+' '+ADV_CLS[cl].name+'</span>';
       kindSel='<span class="s-ro">'+(i===0?'隊長':waiting?'空位':'冒險者')+'</span>';sideSel='<span class="s-ro"></span>'}
+    // 協力守護：所有人同一隊守城，電腦位置是電腦隊友
+    else if(room.grd)sideSel='<span class="s-ro s-team">守城方</span>';
     // 名稱：真人用玩家名稱；電腦用固定的「電腦 N」；空位顯示等待加入
     const name=waiting?'<span class="s-empty">等待加入</span>':human?(cleanName(room.names[i])||(i===0?'房主':'玩家')):'電腦 '+(i+1);
     const tagMe=i===room.you?'<span class="s-tag">你</span>':'';
@@ -3722,6 +3903,7 @@ function renderRoom(){prepTreeLabel();
   $('prep-sum').textContent=roomStatus();
   // 我的王國摘要與色票：和名單上自己那一列共用同一份資料
   myColor=room.colors[room.you];renderColorPick();
+  applyModeUI();
   $('me-sum-txt').innerHTML=(room.adv?'<b>你的角色</b>　'+ico('icon_unit_'+myCls,'',24)+' '+ADV_CLS[myCls].name+(ADV_PTS-myPts.reduce((x,y)=>x+y,0)>0?'　<b style="color:#c9781f">還有 '+(ADV_PTS-myPts.reduce((x,y)=>x+y,0))+' 點未分配</b>':'')+'・':'<b>你的王國</b>　'+(room.nat?natLabel(room.nats[room.you]||'rand')+'・':''))+colorSwatch(myColor)+PALETTE[myColor][0];
 }
 // 名單上的「編輯」：展開或收合該位置的設定
@@ -3853,13 +4035,13 @@ function hostOpen(tries){
 }
 $('b-host').addEventListener('click',()=>{
   room.host=true;room.you=0;room.names[0]=myName();room.nat=$('o-nat').checked;room.nats[0]=myNat;
-  room.adv=advWanted;room.cls=TEAMS.map(i=>i===0?myCls:'sword');room.pts=TEAMS.map(i=>i===0?myPts.slice():[0,0,0]);
-  if(room.adv){for(const i of TEAMS){if(i>0)room.slots[i].kind='open';room.slots[i].side=0}}
-  room.count=room.adv?4:(+$('o-count').value||2);room.colors[0]=myColor;
+  room.adv=false;room.grd=false;room.glen=grdLen;room.gdiff=soloDiff;room.vr=soloVr;room.cls=TEAMS.map(i=>i===0?myCls:'sword');room.pts=TEAMS.map(i=>i===0?myPts.slice():[0,0,0]);
+  room.count=+$('o-count').value||2;room.colors[0]=myColor;
   // 其他位置的預設顏色避開自己選的顏色
   for(const i of TEAMS)if(i>0&&room.colors[i]===myColor)room.colors[i]=firstFreeColor(i);fixColors();
   net.role='host';renderRoom();
-  document.querySelectorAll('[data-diff]').forEach(x=>x.disabled=true);
+  // 沿用單人準備頁最後選的模式（房主之後可以在房間裡切換）
+  if(soloMode!=='vs')setRoomMode(soloMode);
   if(!window.RTCPeerConnection){netMsg('此瀏覽器不支援 WebRTC 連線，但仍可設定電腦對手後直接開始。');return}
   hostOpen(0);
 });
@@ -3871,6 +4053,18 @@ $('b-start').addEventListener('click',()=>{
     const players=TEAMS.filter(i=>i===0||(slotOn(i)&&room.joined[i])).map(i=>({slot:i,name:(i===0?myName():room.names[i])||'',cls:room.cls[i]||'sword',pts:room.pts[i],color:room.colors[i]}));
     const cfg=[{kind:'human',side:0,name:'冒險隊',color:room.colors[0]},{kind:'adv',side:1,name:'野外怪物',color:11},{kind:'adv',side:1,name:'敵軍',color:13}];
     const seed=(Math.random()*4294967296)>>>0,opts={fog:$('o-fog').checked,nat:false,adv:{players}};
+    for(const c of net.conns)if(c.open)c.send({t:'start',seed,cfg,you:c.team,opts});
+    startGame(seed,'host',cfg,0,opts);return}
+  if(room.grd){
+    // 協力守護：已加入的玩家與電腦隊友都在第 0 陣營，入侵軍用最後一個位置
+    const rn=k=>NATS[k]?k:NAT_IDS[Math.random()*NAT_IDS.length|0],en=NAT_IDS[Math.random()*NAT_IDS.length|0];
+    const cfg=TEAMS.map(()=>({kind:'off',side:0}));
+    for(const i of TEAMS){if(!slotOn(i))continue;const s=room.slots[i];
+      if(i===0||(s.kind==='open'&&room.joined[i]))cfg[i]={kind:'human',side:0,name:(i===0?myName():room.names[i])||'',nat:rn(room.nats[i]),color:room.colors[i]};
+      else if(DIFFS[s.kind])cfg[i]={kind:'ai',side:0,diff:s.kind,nat:rn(room.nats[i]),color:room.colors[i]}}
+    cfg[GE]={kind:'grd',side:1,name:'入侵軍',nat:en};
+    const seed=(Math.random()*4294967296)>>>0,opts={fog:$('o-fog').checked,nat:true,grd:{len:room.glen,diff:room.gdiff,nat:en}};
+    opts.peers=TEAMS.map(i=>i===0?(net.peer&&net.peer.id)||null:((net.conns.find(c=>c.team===i&&c.open)||{}).peer||null));
     for(const c of net.conns)if(c.open)c.send({t:'start',seed,cfg,you:c.team,opts});
     startGame(seed,'host',cfg,0,opts);return}
   // 隨機國家由房主在開始時決定，所有玩家拿到同一份結果
@@ -4211,15 +4405,18 @@ function renderKings(){
   const box=$('kings');if(box.hidden||!running&&!ended)return;
   const multiSide=new Set(TEAMS.filter(t=>active[t]).map(t=>sides[t])).size<TEAMS.filter(t=>active[t]).length;
   const h='<div class="kh"><b>王國狀態</b><button type="button" id="b-kings-close" aria-label="關閉王國狀態">關閉</button></div>'+TEAMS.filter(t=>active[t]).map(t=>{
-    const alive=teamAlive(t),tc=tcCount(t),st=!alive?['out','已滅亡']:tc?['ok','存活']:['warn','失去城鎮中心'];
+    const alive=teamAlive(t),tc=tcCount(t),st=!alive?['out','已滅亡']:GRD?['ok','守城中']:tc?['ok','存活']:['warn','失去城鎮中心'];
     const rel=t===myTeam?'你':sides[t]===sides[myTeam]?'盟友':'敵人';
-    return '<div class="kr '+st[0]+'"><i class="dot" style="background:'+MINI_COL[t]+'"></i><span class="kn">'+cleanName(kname(t))+'<small>'+rel+(multiSide?'・第 '+(sides[t]+1)+' 陣營':'')+(nations[t]?'・'+NATS[nations[t]].name:'')+'</small></span><span class="ks">'+st[1]+'</span></div>'}).join('');
+    // 盟友：可以贈送資源（每次 100）
+    const tm=teams[myTeam],gift=!ADV&&alive&&t!==myTeam&&sides[t]===sides[myTeam]?'<div class="gift">'+[['food','🍖'],['wood','🪵'],['gold','🪙']].map(([r,i])=>'<button type="button" data-gift="'+r+'" data-to="'+t+'"'+(tm[r]<100?' disabled':'')+' title="送 100 '+GIFT_N[r]+'給'+cleanName(kname(t))+'">'+i+' 送 100</button>').join('')+'</div>':'';
+    return '<div class="kr '+st[0]+'"><i class="dot" style="background:'+MINI_COL[t]+'"></i><span class="kn">'+cleanName(kname(t))+'<small>'+rel+(multiSide?'・第 '+(sides[t]+1)+' 陣營':'')+(nations[t]?'・'+NATS[nations[t]].name:'')+'</small></span><span class="ks">'+(GRD&&t===GE?'入侵軍':st[1])+'</span></div>'+gift}).join('');
   if(box.innerHTML!==h)box.innerHTML=h;
 }
 // 預設關閉；按「王國」開關，也可以按面板上的關閉、點面板外面或按 Esc 關閉
 function setKings(open){$('kings').hidden=!open;$('b-kings').setAttribute('aria-expanded',String(open));if(open)renderKings()}
 $('b-kings').addEventListener('click',e=>{e.stopPropagation();setKings($('kings').hidden);sfx('click',0.5)});
-$('kings').addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('#b-kings-close')){setKings(false);sfx('click',0.4)}});
+$('kings').addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('#b-kings-close')){setKings(false);sfx('click',0.4);return}
+  const g=e.target.closest('[data-gift]');if(g&&!g.disabled&&running){cmd({c:'gift',to:+g.dataset.to,r:g.dataset.gift});sfx('coins',0.6);setTimeout(renderKings,120)}});
 addEventListener('pointerdown',e=>{if(!$('kings').hidden&&!e.target.closest('#kings')&&!e.target.closest('#b-kings'))setKings(false)},true);
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('kings').hidden){setKings(false);e.stopImmediatePropagation()}},true);
 setInterval(renderKings,1000);
@@ -4391,7 +4588,7 @@ $('b-help-close').addEventListener('click',()=>{$('help').hidden=true});
 /* ---------- 版本號與更新履歷（標題畫面右下）：每次發佈時更新 VERSION，並在 CHANGELOG 最前面加一筆 ---------- */
 const VERSION='v39';
 const CHANGELOG=[
-  ['v39','2026-11-18',['精緻 3D 風格換上更細緻的建築、樹木與資源模型','新增 2D 美術風格：建築、樹木、資源、地表與所有角色改為手繪插畫，角色有行走、攻擊、工作、受擊、倒地動畫','湖泊改為整片水域，不再是零散的小水窪；新出現的單位面向鏡頭','冒險模式的「科技」改為「技能」，顯示六個職業的技能說明','介面用語「對局」統一改為「遊戲」','多人連線分段顯示進度（配對伺服器、房主回應、建立連線、分配位置），失敗時說明原因並可再試一次或複製診斷資訊；建立房間逾時會自動重試','標題畫面加入背景音樂（L\'Éveil du Royaume），進入遊戲時淡出','修正 iPhone 上標題畫面與遊戲介面重疊的問題；iPhone 的全螢幕按鈕改為說明「加入主畫面」','新增冒險模式：六個職業，自由分配 HP／ATK／DEF，可單人或多人合作','技能需要瞄準，施放前在地面顯示範圍；敵人的重擊有紅色預警，可用閃避躲開','共用城鎮、野外怪物、探索地點、突發事件、收集遺物後迎戰首領']],
+  ['v39','2026-11-18',['精緻 3D 風格換上更細緻的建築、樹木與資源模型','新增 2D 美術風格：建築、樹木、資源、地表與所有角色改為手繪插畫，角色有行走、攻擊、工作、受擊、倒地動畫','湖泊改為整片水域，不再是零散的小水窪；新出現的單位面向鏡頭','冒險模式的「科技」改為「技能」，顯示六個職業的技能說明','介面用語「對局」統一改為「遊戲」','多人連線分段顯示進度（配對伺服器、房主回應、建立連線、分配位置），失敗時說明原因並可再試一次或複製診斷資訊；建立房間逾時會自動重試','新增協力守護模式：和朋友或電腦隊友一起守住中央的城堡，敵軍分波來襲，可選短、標準、長三種長度；建築、科技與人口全隊共用，資源可以送給隊友','單人遊戲與多人房間的「遊戲模式」下拉選單一次列出全部玩法：七種對戰、協力守護、冒險，選了就顯示說明（多人由房主決定）','對戰新增六種規則：守護領主、聖地爭奪、奇觀競賽、和平條約、遊牧開局、飢荒時代；電腦也會照規則行動','聖地爭奪：三處聖地同時存在，佔領後保持到被奪走，佔領最多的陣營才得分','遊牧開局：出生點沒有資源，前 20 秒探路期後才能建城；每國有一近一遠兩處營地可選','飢荒時代：食物每秒依人口消耗，存糧偏低會警告，食物歸零王國立刻滅亡；存糧不到安全量時會擋下訓練與研究','單人遊戲的準備頁固定大小，切換遊戲模式時視窗不再忽大忽小','標題畫面新增留言板：不用登入，用領主名稱留言，所有玩家都看得到','單人遊戲中你的王國滅亡（或領主陣亡）就立即判定戰敗，即使電腦盟友還活著；多人連線中出局的玩家會收到提示並可繼續觀戰','標題畫面加入背景音樂（L\'Éveil du Royaume），進入遊戲時淡出','修正 iPhone 上標題畫面與遊戲介面重疊的問題；iPhone 的全螢幕按鈕改為說明「加入主畫面」','新增冒險模式：六個職業，自由分配 HP／ATK／DEF，可單人或多人合作','技能需要瞄準，施放前在地面顯示範圍；敵人的重擊有紅色預警，可用閃避躲開','共用城鎮、野外怪物、探索地點、突發事件、收集遺物後迎戰首領']],
   ['v38','2026-11-18',['電腦對手分成五個等級，同等級會隨機採用不同策略','電腦失去城鎮中心後會繼續採集並重建，無法翻身時會投降','閒置的士兵會主動迎擊視野內的入侵者']],
   ['v37','2026-11-18',['全新的動態標題畫面與 LOGO','可建造城鎮中心；滅亡條件改為單位全滅','開局新增斥候騎兵，各國開局資源不同','調整國家平衡數值與部分單位數值','攻擊後會自動接戰下一個目標；攻擊音效細分','新增王國狀態面板、全螢幕按鈕','多人房間頁與手機介面改版']],
   ['v36','2026-11-18',['科技總覽全面改版','聊天可切換全頻／同盟']],
@@ -4422,6 +4619,47 @@ renderFs();
 function fitTop(){const tr=$('tr');if(!tr)return;const r=tr.getBoundingClientRect();if(r.width)document.documentElement.style.setProperty('--trw',Math.ceil(innerWidth-r.left)+'px')}
 try{new ResizeObserver(fitTop).observe($('tr'))}catch(_){}addEventListener('resize',fitTop);fitTop();
 document.addEventListener('fullscreenchange',renderFs);document.addEventListener('webkitfullscreenchange',renderFs);
+/* ---------- 留言板：所有玩家共用。後端是 Google Apps Script（board-apps-script.gs），留言存在作者的試算表 ----------
+   BOARD_URL 填部署後的網址（結尾 /exec）；留空時留言板顯示「尚未開通」。頻率與字數限制以後端為準，這裡只是先擋一次。 */
+const BOARD_URL='https://script.google.com/macros/s/AKfycbyf1Cu6VsSfv35WUlSR1-7NdP76oSyty5rsjGl7Xh67cNqpIux1oL4k9mx5pP0FmaIO9w/exec';
+const boardUrl=()=>window.TL_BOARD_URL||BOARD_URL;
+const BOARD={busy:false,next:0,cid:''};
+try{BOARD.cid=localStorage.getItem('tinylord-cid')||'';if(!BOARD.cid){BOARD.cid=Math.random().toString(36).slice(2,14)+Date.now().toString(36);localStorage.setItem('tinylord-cid',BOARD.cid)}}catch(_){BOARD.cid=Math.random().toString(36).slice(2,14)}
+const boardName=()=>cleanName($('i-name').value)||'玩家';
+function boardMsg(s,err){const el=$('board-msg');el.textContent=s||'留言是公開的，所有玩家都看得到，請不要寫個人資料。';el.classList.toggle('err',!!err)}
+function boardTime(iso){const d=new Date(iso);if(isNaN(d))return'';const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())}
+function boardRender(list){const el=$('board-list');el.textContent='';
+  if(!Array.isArray(list)||!list.length){const p=document.createElement('p');p.className='board-empty';p.textContent='還沒有人留言，來當第一個吧！';el.appendChild(p);return}
+  // 一律用 textContent 放進畫面，留言裡的符號不會被當成網頁語法
+  for(const m of list.slice(0,50)){const it=document.createElement('div');it.className='board-item';
+    const h=document.createElement('div');h.className='bh';const n=document.createElement('span');n.textContent=cleanName(m.n)||'玩家';const t=document.createElement('small');t.textContent=boardTime(m.t);h.append(n,t);
+    const x=document.createElement('p');x.textContent=String(m.x==null?'':m.x).slice(0,200);it.append(h,x);el.appendChild(it)}}
+function boardNote(s){const el=$('board-list');el.textContent='';const p=document.createElement('p');p.className='board-empty';p.textContent=s;el.appendChild(p)}
+async function boardCall(body){
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),15000);
+  try{// 用 text/plain 送出，瀏覽器就不必先發預檢請求（Apps Script 不回應預檢）
+    const r=await fetch(boardUrl(),body?{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body),signal:ctl.signal,redirect:'follow'}:{signal:ctl.signal,redirect:'follow'});
+    if(!r.ok)throw new Error('http '+r.status);return await r.json()}finally{clearTimeout(tm)}}
+async function boardLoad(){
+  if(!boardUrl()){boardNote('留言板尚未開通。');return}if(BOARD.busy)return;BOARD.busy=true;boardNote('讀取中…');
+  try{const j=await boardCall();if(j&&j.ok)boardRender(j.list);else boardNote('讀取失敗，請稍後再試。')}catch(_){boardNote('連不上留言板，請檢查網路後按「重新整理」。')}BOARD.busy=false}
+function boardOpen(){$('board').hidden=false;$('board-name').textContent=boardName();const on=!!boardUrl();$('board-in').disabled=!on;$('b-board-send').disabled=!on;boardMsg('');sfx('book',0.6);boardLoad()}
+$('b-board0').addEventListener('click',boardOpen);
+$('b-board-close').addEventListener('click',()=>{$('board').hidden=true});
+$('b-board-refresh').addEventListener('click',()=>{sfx('click',0.5);boardLoad()});
+$('board-in').addEventListener('input',()=>{$('board-count').textContent=$('board-in').value.length+'／200'});
+$('board-form').addEventListener('submit',async e=>{e.preventDefault();
+  const text=$('board-in').value.replace(/\s+/g,' ').trim();if(!boardUrl()||BOARD.busy)return;
+  if(!text){boardMsg('請先輸入留言。',1);return}
+  if(/https?:\/\/|www\./i.test(text)){boardMsg('留言不能包含網址。',1);return}
+  const wait=Math.ceil((BOARD.next-Date.now())/1000);if(wait>0){boardMsg('留言太頻繁，請等 '+wait+' 秒再試。',1);return}
+  BOARD.busy=true;$('b-board-send').disabled=true;boardMsg('送出中…');
+  try{const j=await boardCall({name:boardName(),text,cid:BOARD.cid});
+    if(j&&j.ok){$('board-in').value='';$('board-count').textContent='0／200';BOARD.next=Date.now()+60000;boardRender(j.list);boardMsg('留言已送出。');sfx('confirm',0.6)}
+    else boardMsg(j&&typeof j.err==='string'?j.err.slice(0,60):'送出失敗，請稍後再試。',1)}
+  catch(_){boardMsg('連不上留言板，留言沒有送出。',1)}
+  BOARD.busy=false;$('b-board-send').disabled=false});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('board').hidden){$('board').hidden=true;e.stopImmediatePropagation()}},true);
 $('b-changelog').addEventListener('click',()=>{$('changelog').hidden=false;sfx('book',0.6)});
 $('b-changelog-close').addEventListener('click',()=>{$('changelog').hidden=true});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('changelog').hidden){$('changelog').hidden=true;e.stopImmediatePropagation()}},true);
@@ -4478,7 +4716,7 @@ function doAct(b){
   else if(b.act==='train'){
     if(!bl||bl.dead||bl.queue.length>=QMAX)return;const d=UNITS[b.arg];
     if(!afford(myTeam,d.cost)){lackToast(d.cost);return}
-    if(tm.pop+(d.pop||1)>capOf(myTeam)){flashLack(['pop']);toast(capOf(myTeam)>=POPMAX?'已達人口上限':'人口不足，請建造房屋')}
+    if(tm.pop+(d.pop||1)>capOf(myTeam)){flashLack(['pop']);toast(capOf(myTeam)>=popMax()?'已達人口上限':'人口不足，請建造房屋')}
     cmd({c:'train',bid:bl.id,u:b.arg});
   }else if(b.act==='research'){
     if(!bl||bl.dead||b.busy)return;
@@ -4500,23 +4738,27 @@ function updatePanel(){
     info='<b>已選取 '+sel.length+' 個單位</b><div class="sub">'+Object.keys(c).map(k=>UNITS[k].icon+' '+uName(myTeam,k)+' ×'+c[k]).join('　')+'</div>';
   }else if(e.kind==='res')info='<b>'+RES_ICON[e.rtype]+' '+RES_NAME[e.rtype]+'</b><div class="sub">剩餘 '+e.amount+'</div>';
   else{
-    info='<b>'+e.d.icon+' '+(e.kind==='unit'?uName(e.team,e.type):e.d.name)+(e.team===myTeam?'':(hostile(e.team,myTeam)?'（敵方・':'（盟友・')+pnames[e.team]+'）')+'</b><div class="sub">生命 '+Math.max(0,Math.ceil(e.hp))+' / '+e.maxhp+(e.d.atk?'　攻擊 '+atkOf(e):'')+(e.kind==='unit'?'　護甲 '+armorOf(e,false)+'／'+armorOf(e,true):'')+'</div>';
+    info='<b>'+e.d.icon+' '+(e.king?'👑 領主（'+uName(e.team,e.type)+'）':e.kind==='unit'?uName(e.team,e.type):e.castle?'城堡':e.d.name)+(e.team===myTeam?'':(hostile(e.team,myTeam)?'（敵方・':'（盟友・')+pnames[e.team]+'）')+'</b><div class="sub">生命 '+Math.max(0,Math.ceil(e.hp))+' / '+e.maxhp+(e.d.atk?'　攻擊 '+atkOf(e):'')+(e.kind==='unit'?'　護甲 '+armorOf(e,false)+'／'+armorOf(e,true):'')+'</div>';
     if(e.d.desc)info+='<div class="sub">'+e.d.desc+'</div>';
+    if(e.castle)info+='<div class="sub">守護目標：被摧毀就失敗。可以訓練村民，也會自動射箭。</div>';
+    if(e.king)info+='<div class="sub">守護領主：領主陣亡，整個王國就出局。</div>';
+    if(e.type==='wonder'&&e.done&&VR.wonder&&VR.wonder.t===e.team)info+='<div class="sub">再守住 '+fmtT(VR.wonder.left)+' 就獲勝</div>';
     if(natMode&&nations[e.team]&&e.team!==myTeam)info+='<div class="sub">'+NATS[nations[e.team]].icon+' '+NATS[nations[e.team]].name+'</div>';
     if(e.kind==='unit'&&e.carry>0)info+='<div class="sub">攜帶 '+RES_ICON[e.carryType]+' '+e.carry+'</div>';
     if(e.kind==='bld'&&!e.done)info+='<div class="sub">建造中 '+Math.floor(e.progress*100)+'%</div>';
-    if(e.kind==='bld'&&e.team===myTeam&&e.queue.length){
+    if(e.kind==='bld'&&e.team!==myTeam&&GRD&&!hostile(e.team,myTeam))info+='<div class="sub">盟友的建築，可以一起使用（訓練與研究花費你自己的資源）</div>';
+    if(e.kind==='bld'&&shareB(myTeam,e)&&e.queue.length){
       const it={time:timeOf(e.queue[0],e.team)},full=e.trainT>=it.time;
       info+='<div class="sub">'+(e.queue[0][0]==='#'?'研究':'訓練')+' '+e.queue.map(q=>itemDef(q).icon).join('')+'　'+(full?'等待人口空間':Math.floor(e.trainT/it.time*100)+'%')+'</div>';
     }
   }
-  if(e&&e.team===myTeam&&!e.dead){
+  if(e&&!e.dead&&(e.team===myTeam||(e.kind==='bld'&&shareB(myTeam,e)))){
     if(e.kind==='unit'){
-      if(sel.some(s=>s.type==='villager'))BUILD_MENU.forEach(k=>{const d=BLD[k];if(!natOk(myTeam,d))return;const ba=bAge(myTeam,k);
+      if(sel.some(s=>s.type==='villager'))BUILD_MENU.forEach(k=>{const d=BLD[k];if(!natOk(myTeam,d)||(GRD&&k==='tc')||(k==='wonder'&&VR.mode!=='wonder'))return;const ba=bAge(myTeam,k);
         const nTc=k==='tc'?tcCount(myTeam):0,tcMax=k==='tc'&&nTc>=TC_MAX,tcAge=k==='tc'&&nTc>0&&tm.age<2;
         const full=k==='house'&&popRoomFull(myTeam),lock=ba>tm.age||full||tcMax||tcAge;
         btns.push({act:'build',arg:k,icon:d.icon,name:d.name,cost:full||tcMax?'已達上限':tcAge?'需'+AGE[2]:ba>tm.age?'需'+AGE[ba]:costStr(d.cost),lock,dis:lock||!afford(myTeam,d.cost),
-          tip:(d.desc||BLD_DESC[k]||'')+(full?'（人口上限 '+POPMAX+'，無法再增加房屋）':'')+(k==='tc'?'。沒有城鎮中心時任何時代都能重建；城邦時代起可以加蓋，最多 '+TC_MAX+' 座':'')})});
+          tip:(d.desc||BLD_DESC[k]||'')+(full?'（人口上限 '+popMax()+'，無法再增加房屋）':'')+(k==='tc'?'。沒有城鎮中心時任何時代都能重建；城邦時代起可以加蓋，最多 '+TC_MAX+' 座':'')})});
       else{btns.push({act:'amove',icon:'🎯',name:'進攻',cost:'沿途迎敵',tip:'點選地圖上的目的地，部隊移動途中會攻擊遇到的敵人'});btns.push({act:'stop',icon:'✋',name:'停止',cost:'原地待命',tip:'停止目前的行動，原地待命'});
         if(sel.length>1)for(const f in FORMS){const F=FORMS[f];btns.push({act:'form',arg:f,icon:F.icon,name:F.name,cost:formMode===f?'使用中':'隊形',on:formMode===f,tip:F.desc})}}
     }else if(e.done){
@@ -4529,7 +4771,7 @@ function updatePanel(){
       for(const id in TECH){const T=TECH[id];if(T.at!==e.type||tm.tech[id]||!natOk(myTeam,T)||natLacks(myTeam,id)||(T.req&&natLacks(myTeam,T.req))||(T.req&&!tm.tech[T.req]&&TECH[T.req].at===T.at))continue;
         const needAge=tm.age<T.age,lock=needAge||(T.req&&!tm.tech[T.req]),busy=!!tm.res[id];
         btns.push({act:'research',arg:id,icon:T.icon,name:T.name,cost:busy?'研究中':lock?'需'+(needAge?AGE[T.age]:TECH[T.req].name):costStr(T.cost),lock:lock&&!busy,busy,dis:busy||lock||!afford(myTeam,T.cost),tip:T.desc})}
-      if(e.queue.length)btns.push({act:'cancel',icon:'↩️',name:'取消',cost:'退還資源',tip:'取消佇列中最後一項，退還全部資源'});
+      if(e.queue.length&&qOwn(e).includes(myTeam))btns.push({act:'cancel',icon:'↩️',name:'取消',cost:'退還資源',tip:'取消你在佇列中的最後一項，退還全部資源'});
     }
   }
   // 觸控裝置沒有右鍵與 Esc，提供取消選取按鈕
@@ -4844,7 +5086,7 @@ function advTree(cls){
 }
 $('tree').addEventListener('click',e=>{const b=e.target.closest('[data-advcls]');if(b){sfx('click',0.4);advTree(b.dataset.advcls)}});
 function showTree(plan,nat){
-  if(plan?(room.adv&&prepMode==='room'):ADV){advTree(plan?myCls:null);return}
+  if(plan?curMode()==='adv':ADV){advTree(plan?myCls:null);return}
   document.querySelector('#tree h1').textContent='科技總覽';$('tree-main').classList.remove('advtree');
   TV.ctx={plan:!!plan,nat:plan?(NATS[nat]?nat:null):(nations[myTeam]||null)};
   if(!TV.cat.nat||!NATS[TV.cat.nat])TV.cat.nat=TV.ctx.nat||NAT_IDS[0];
@@ -4854,7 +5096,8 @@ const fmtT=t=>String(t/60|0).padStart(2,'0')+':'+String(t%60|0).padStart(2,'0');
 function updateHUD(){
   const t=teams[myTeam];
   $('r-food').textContent=t.food;$('r-wood').textContent=t.wood;$('r-gold').textContent=t.gold;
-  $('r-pop').textContent=t.pop+'/'+capOf(myTeam);$('r-time').textContent=fmtT(time);$('r-age').textContent=AGE[t.age];if(lastAgeIco!==t.age){lastAgeIco=t.age;$('i-age').innerHTML=ico('icon_age_age'+t.age,'🏛️',32)}if(ADV)advHud();
+  $('r-pop').textContent=t.pop+'/'+capOf(myTeam);$('r-time').textContent=fmtT(time);$('r-age').textContent=AGE[t.age];if(lastAgeIco!==t.age){lastAgeIco=t.age;$('i-age').innerHTML=ico('icon_age_age'+t.age,'🏛️',32)}if(ADV)advHud();if(GRD&&GD.L)grdHud();if(running||ended)vrHud();
+  if(VR.marks)for(const g of VR.marks){const gm=g.getObjectByName('gem');if(gm)gm.rotation.y=time*1.5}
   const idle=ents.filter(e=>e.team===myTeam&&e.type==='villager'&&!e.order&&!e.dead).length;
   $('n-idle').textContent=idle;$('b-idle').classList.toggle('dim',idle===0);
   for(const e of ents){
@@ -5027,6 +5270,12 @@ function drawMini(){
     if(e.team===myTeam){c.beginPath();c.arc(x,z,r+5*u,0,7);c.lineWidth=1.5*u;c.strokeStyle='#fff';c.stroke()}
     else if(hostile(e.team,myTeam)){c.lineWidth=2*u;c.strokeStyle='#fff';c.beginPath();c.moveTo(x-3*u,z-3*u);c.lineTo(x+3*u,z+3*u);c.moveTo(x+3*u,z-3*u);c.lineTo(x-3*u,z+3*u);c.stroke()}
   }
+  // 聖地爭奪：每處聖地畫一個圓，顏色＝佔領陣營，金色＝無人佔領
+  if(VR.mode==='hill'&&VR.sites)VR.sites.forEach((p,i)=>{const o=VR.owner[i];
+    c.beginPath();c.arc(p.x*k,p.z*k,Math.max(5*u,VR_HILL_R*k),0,7);c.fillStyle=o>=0?vrSideCol(o):'#f2c14e';c.fill();c.lineWidth=2*u;c.strokeStyle='#fff';c.stroke()});
+  // 遊牧開局：自己看得到的營地畫帳篷色方框（還沒建城時才顯示）
+  if(VR.mode==='nomad'&&VR.camps&&!ents.some(e=>!e.dead&&e.team===myTeam&&e.type==='tc'))for(const p of VR.camps){if(fogOn&&!expl[ti(p.x)+ti(p.z)*N])continue;
+    c.lineWidth=2*u;c.strokeStyle=p.rich?'#ffd23f':'#fff';c.strokeRect(p.x*k-5*u,p.z*k-5*u,10*u,10*u)}
   for(let i=pings.length-1;i>=0;i--){const p=pings[i],a=time-p.t;if(a>4||a<0){pings.splice(i,1);continue}
     c.strokeStyle='rgba(255,255,255,'+(1-a/4)+')';c.lineWidth=2;c.beginPath();c.arc(p.x*k,p.z*k,4+(a%1)*10,0,7);c.stroke()}
   const cs=[ground(0,0),ground(W,0),ground(W,H),ground(0,H)];
@@ -5116,9 +5365,9 @@ function animateUnits(dt){
 }
 function simulate(dt){
   time+=dt;
-  if(ADV)advTick(dt);
+  if(ADV)advTick(dt);else if(GRD)grdTick(dt);
   if(Math.floor(time)!==Math.floor(time-dt)&&time>2)tcWatch();
-  if(Math.floor(time)!==Math.floor(time-dt)){pruneDebris();updateIntruders()}
+  if(Math.floor(time)!==Math.floor(time-dt)){pruneDebris();updateIntruders();if(VR.mode!=='std'&&!ended)vrTick()}
   // 每 15 秒記錄一次分數與人口，用於結算頁面的曲線圖
   if(Math.floor(time/15)!==Math.floor((time-dt)/15)||time<=dt){
     for(let t=0;t<MAXT;t++){if(!active[t])continue;const s=stats[t];s.maxPop=Math.max(s.maxPop,teams[t].pop);s.hist.push([Math.round(time),scoreOf(t).total,teams[t].pop])}
@@ -5559,11 +5808,304 @@ addEventListener('pointerdown',e=>{
   const h=advHero(advMe()),g=ground(e.clientX,e.clientY);if(h&&g)advCast(advAim.i,g);advAimClear();panelCache='';
 },true);
 for(const ev of ['pointerup','click','contextmenu'])addEventListener(ev,e=>{if(advEat&&e.target===ov){e.stopPropagation();e.preventDefault();if(ev!=='pointerup')advEat=false;else setTimeout(()=>{advEat=false},50)}},true);
+/* ================= 協力守護模式 =================
+   地圖中央有一座城堡（開局就有的城鎮中心，生命較高），四周用柵欄圍住、四面各有一道城門。
+   敵軍分波從地圖邊緣來襲，目標只有城堡：路被擋住就打擋路的城門或牆，打破後繼續前進；
+   被我方單位攻擊時會還手幾秒再繼續前進；少數「獵兵」會主動攻擊沿途的單位與建築。
+   守完所有波次並清光敵軍就獲勝，城堡被毀就失敗。 */
+// waves 波數、first 第一波時間、gap 間隔、b0 第一波強度預算、g 每波成長倍率、boss 首領波
+const GRD_LEN={short:{n:'短（約 8 分鐘）',waves:5,first:75,gap:70,b0:260,g:1.44,boss:[5]},std:{n:'標準（約 15 分鐘）',waves:8,first:150,gap:95,b0:260,g:1.36,boss:[8]},long:{n:'長（約 30 分鐘）',waves:15,first:170,gap:105,b0:240,g:1.21,boss:[5,10,15]}};
+// 平衡依據（2026-11-20，電腦當守方快轉測試）：普通難度下，普通電腦大多能撐到最後一兩波、困難電腦多半獲勝且城堡受損。
+// 電腦前期發展比真人快、後期軍隊上限比真人低，所以前幾波刻意保持溫和。
+const GRD_DIFF={beginner:0.55,easy:0.75,normal:1,hard:1.3,expert:1.6};
+const GRD_R=11,GRD_WARN=30,GRD_MAXN=40;
+const GRD_DIR=['東','東南','南','西南','西','西北','北','東北'];
+const grdCastle=()=>byId.get(GD.cid);
+// 守城人數（含電腦隊友）對應的敵軍強度與數量倍率
+const GRD_PK=[1,1.7,2.3,2.9];
+function grdInit(o){
+  const keep={R:GD.R};for(const k in GD)delete GD[k];GD.R=keep.R||GRD_R;
+  GD.len=GRD_LEN[o&&o.len]?o.len:'std';GD.L=GRD_LEN[GD.len];GD.diff=GRD_DIFF[o&&o.diff]||1;
+  GD.wave=0;GD.nextAt=GD.L.first;GD.warned=0;GD.dirs=[];GD.bv=0;GD.aiT=0;GD.left=0;
+  GD.k=Math.max(1,grdTeams().length);GD.pk=GRD_PK[GD.k-1]||1+0.6*(GD.k-1);
+  // 敵軍是隨機一個國家，會帶該國的特色兵種
+  GD.nat=NATS[o&&o.nat]?o.nat:null;
+}
+// 基地固定在地圖正中央；圍欄大小依守城人數加大（每多一人外擴 1 格，最多 3 格）
+function grdLayout(){const c=N>>1,p={x:c,z:c,t:0,a:Math.PI/2};BASES=[p];for(const t of TEAMS)basePos[t]=p;GD.R=GRD_R+Math.min(3,Math.max(0,grdTeams().length-1))}
+// 清出柵欄線與城門前後的空地，並保證圍欄內有一片樹林
+function grdCarve(gen){
+  const B=BASES[0],R=GD.R;
+  for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++){
+    const m=Math.max(Math.abs(dx),Math.abs(dz)),i=B.x+dx+(B.z+dz)*N;
+    if(m===R)gen[i]=0;
+    else if((m===R-1||m===R+1)&&(Math.abs(dx)<=1||Math.abs(dz)<=1))gen[i]=0;
+  }
+  for(const g of [[-1,-1],[1,-1],[-1,1],[1,1]])for(let a=6;a<=9;a++)for(let b=6;b<=9;b++){const i=B.x+g[0]*a+(B.z+g[1]*b)*N;if(!gen[i]&&(a+b)%3)gen[i]=1}
+}
+function grdSetup(){
+  const B=BASES[0],cx=B.x,cz=B.z,R=GD.R,short=GD.len==='short',G=grdTeams();
+  // 城堡與圍欄屬於第一位守城玩家（房主），但全隊都能使用
+  const c=addBuilding('tc',G[0],cx-1,cz-1,true);c.castle=1;c.maxhp=Math.round(c.maxhp*GRD_CASTLE);c.hp=c.maxhp;GD.cid=c.id;
+  teams[G[0]].cap+=5*(G.length-1);   // 城堡每位守城玩家提供 5 人口（人口全隊平分，否則開局就超過上限）
+  for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++){
+    if(Math.max(Math.abs(dx),Math.abs(dz))!==R)continue;const tx=cx+dx,tz=cz+dz;
+    if(freeRect(tx,tz,1))addBuilding(dx===0||dz===0?'gate':'palisade',G[0],tx,tz,true);
+  }
+  // 每位守城玩家各有自己的村民與斥候，從城堡四周不同方向出發
+  G.forEach((t,j)=>{const a=Math.PI/2+j*Math.PI*2/G.length,ox=Math.cos(a),oz=Math.sin(a);
+    for(let i=0;i<(short?5:3);i++){const k=(i-(short?2:1))*0.9;addUnit('villager',t,cx+0.5+ox*2.8-oz*k,cz+0.5+oz*2.8+ox*k)}
+    addUnit('scout',t,cx+0.5+ox*4.3,cz+0.5+oz*4.3);
+    if(short){const tm=teams[t];tm.food+=300;tm.wood+=300;tm.gold+=200}});
+  // 短局：開局就有兵營與房屋（每人一棟房屋），直接進入備戰
+  if(short)for(const [k,s] of [['barracks',3]].concat(G.map(()=>['house',2])).concat([['house',2]])){const p=advFreeSpot(cx,cz,4,R-3,s);if(p)addBuilding(k,G[0],p.tx,p.tz,true)}
+}
+// 讓守護模式的敵人回到主要目標：直攻城堡（獵兵與首領在路上看到目標會先去打，見 grdAI）
+function grdGo(u){
+  const c=grdCastle();if(!c||c.dead){u.order=null;return}
+  u.order={type:'attack',target:c,gw:1};u.pathFor=null;u.path=null;u.gw.blkT=0;
+}
+// 擋路的建築：r 格內最近的城門或牆；wallOnly 為假時，沒有牆就找最近的其他建築（城堡除外）
+function grdBlocker(u,r,wallOnly){
+  let w=null,wd=r,b=null,bd=r;
+  for(const e of ents){if(e.dead||e.kind!=='bld'||e.castle||!hostile(e.team,u.team))continue;const d=distTo(u,e);
+    if((e.d.wall||e.d.gate)&&d<wd){wd=d;w=e}if(!wallOnly&&d<bd){bd=d;b=e}}
+  return w||b;
+}
+function grdAI(){
+  for(const u of ents){
+    if(u.dead||u.kind!=='unit'||!u.gw)continue;
+    const o=u.order;
+    if(!o){grdGo(u);continue}
+    // 還手：對方陣亡、打了幾秒、或對方跑遠了，就回頭繼續攻城
+    if(o.gret){if(o.target.dead||time>u.gw.retT||distTo(u,o.target)>rangeOf(u)+4){u.gw.retCd=time+2.5;grdGo(u)}continue}
+    // 已經走到能到的最近處，仍然到不了目標
+    const stuck=u.partial&&(!u.path||!u.path.length)&&!u.d.fly;
+    // 獵兵與首領：前往城堡途中，視野內有我方單位或「不是牆的建築」就先去打；牆只有在擋路時才打
+    if(u.gw.hunt&&o.gw){
+      const r=sightOf(u);let t=u.d.siege?null:findEnemy(u,r,false);
+      if(!t){let bd=r;for(const e of ents){if(e.dead||e.kind!=='bld'||e.castle||e.d.wall||e.d.gate||!hostile(e.team,u.team))continue;const d=distTo(u,e);if(d<bd){bd=d;t=e}}}
+      if(t){u.order={type:'attack',target:t,ghunt:1};u.pathFor=null;continue}
+    }
+    if(o.ghunt&&(o.target.dead||distTo(u,o.target)>sightOf(u)+5)){grdGo(u);continue}
+    // 擋路的牆被打破（任何我方建築倒塌）就重新找路
+    if(o.breach&&(o.target.dead||o.bv!==GD.bv)){grdGo(u);continue}
+    if(!stuck){u.gw.blkT=0;continue}
+    // 被擋住：打最近的城門或牆（附近沒有就找最近的建築，再沒有就走向最近的牆）
+    if(!o.breach){const t=grdBlocker(u,4.5,false)||grdBlocker(u,999,true);if(t){u.order={type:'attack',target:t,breach:1,bv:GD.bv};u.pathFor=null;u.gw.blkT=0;continue}}
+    // 連牆都走不到（被樹林或湖泊困住）：幾秒後換到另一個走得通的出兵點，不會卡在看不到的地方
+    u.gw.blkT=(u.gw.blkT||0)+0.25;
+    if(u.gw.blkT>5){const p=grdSpawnAt(Math.random()*8|0);u.x=u.nx=p.x;u.z=u.nz=p.z;grdGo(u)}
+  }
+}
+// 來襲方向對應的出兵位置（地圖邊緣內側）
+function grdEdge(di){const a=di*Math.PI/4,c=N/2,r=N/2-5,k=1/Math.max(Math.abs(Math.cos(a)),Math.abs(Math.sin(a)));
+  return nearFree(Math.round(c+Math.cos(a)*r*k),Math.round(c+Math.sin(a)*r*k))}
+// 確認出兵點走得到圍欄外側；走不到就改用相鄰方向的出兵點
+function grdSpawnAt(di){
+  const B=BASES[0],near=(x,z)=>Math.max(Math.abs(x-B.x),Math.abs(z-B.z))<=GD.R+2;
+  for(const off of [0,1,-1,2,-2,3,-3,4]){const p=grdEdge((di+off+8)%8);pathSide=sides[GE];astar(ti(p.x),ti(p.z),B.x,B.z,near);if(astarFound)return p}
+  return grdEdge(di);
+}
+function grdPlan(){
+  const w=GD.wave+1,d=Math.random()*8|0;GD.dirs=[d];
+  if(w>=3&&Math.random()<0.5)GD.dirs.push((d+(Math.random()<0.5?4:Math.random()<0.5?2:6))%8);
+  const boss=GD.L.boss.includes(w);
+  announce((boss?'👹 首領波：':'⚔️ ')+'第 '+w+' 波敵軍將在 '+GRD_WARN+' 秒後從'+GD.dirs.map(i=>GRD_DIR[i]).join('與')+'方來襲');
+  for(const i of GD.dirs){const p=grdEdge(i);pings.push({x:p.x,z:p.z,t:time})}
+}
+function grdSpawn(){
+  const L=GD.L,w=GD.wave+1,p=(w-1)/Math.max(1,L.waves-1),pick=a=>a[Math.random()*a.length|0],val=k=>costSum(UNITS[k].cost);
+  let budget=L.b0*Math.pow(L.g,w-1)*GD.diff*GD.pk;const maxN=Math.round(GRD_MAXN*(1+0.35*(GD.k-1)));
+  // 兵種池隨進度擴大；每波只挑兩三種，讓同樣強度的波次組成不同
+  const pool=['spear','sword'];if(p>=0.25||w>=3)pool.push('archer','skirm','knight');if(p>=0.6)pool.push('golem');if(p>=0.75)pool.push('phoenix');
+  const nat=Object.keys(UNITS).filter(k=>UNITS[k].nat===GD.nat&&!UNITS[k].noAtk&&((UNITS[k].age||1)===1||p>=0.25));
+  const theme=[];if(nat.length&&Math.random()<0.6)theme.push(pick(nat));
+  while(theme.length<(p>=0.4?3:2)){const k=pick(pool);if(!theme.includes(k))theme.push(k)}
+  const list=[];
+  if(p>=0.3){const rams=Math.min(3,1+Math.floor(w/5));for(let i=0;i<rams;i++){list.push('ram');budget-=val('ram')*0.6}}
+  let spent=0;while(budget-spent>20&&list.length<maxN){const k=pick(theme);list.push(k);spent+=val(k)}
+  // 數量到上限後，剩下的預算換成生命加成
+  const mul=Math.max(1,budget/Math.max(1,spent));
+  const sp=GD.dirs.map(grdSpawnAt);
+  list.forEach((k,i)=>{
+    const s=sp[i%sp.length],u=addUnit(k,GE,s.x+(Math.random()-0.5)*3,s.z+(Math.random()-0.5)*3);
+    u.gw={hunt:w>=3&&!u.d.siege&&!u.d.fly&&Math.random()<0.15?1:0};
+    if(mul>1){u.maxhp=Math.round(u.maxhp*mul);u.hp=u.maxhp}
+    grdGo(u);
+  });
+  if(L.boss.includes(w)){const s=sp[0],u=addUnit('golem',GE,s.x,s.z);u.gw={hunt:1,boss:1};u.maxhp=Math.round(u.maxhp*(3+2*p)*GD.diff*Math.sqrt(GD.pk));u.hp=u.maxhp;u.am=1.3;grdGo(u)}   // 首領會主動攻擊沿途的守軍與建築，不直衝城堡
+  announce('⚔️ 第 '+w+'／'+L.waves+' 波敵軍出現了！');
+}
+function grdTick(dt){
+  const L=GD.L;
+  if(GD.wave<L.waves){
+    const left=GD.nextAt-time;
+    if(!GD.warned&&left<=GRD_WARN){GD.warned=1;grdPlan()}
+    if(left<=0){if(!GD.warned)grdPlan();grdSpawn();GD.wave++;GD.warned=0;GD.nextAt=time+L.gap}
+  }
+  GD.aiT-=dt;if(GD.aiT<=0){GD.aiT=0.25;grdAI()}
+}
+function grdCheck(){
+  if(ended||!running)return;const c=grdCastle();
+  if(!c||c.dead){announce('🏰 城堡被攻陷了');endGame(1);return}
+  let n=0;for(const e of ents)if(!e.dead&&e.kind==='unit'&&e.team===GE)n++;GD.left=n;
+  if(GD.wave>=GD.L.waves&&n===0){announce('🎉 所有敵軍都被擊退，守住城堡了！');endGame(0)}
+}
+// 敵軍只剩少數時，每 8 秒在小地圖標出位置，避免找不到最後幾個敵人（房主與加入者各自在畫面上標示）
+function grdPing(){
+  const n=GD.left;if(!(n>0&&n<=5)||time-(GD.pingT||-99)<8)return;GD.pingT=time;
+  for(const e of ents)if(!e.dead&&e.kind==='unit'&&e.team===GE)pings.push({x:e.x,z:e.z,t:time});
+  if(GD.remW!==GD.wave){GD.remW=GD.wave;toast('敵軍剩下 '+n+' 名，位置已標在小地圖上')}
+}
+// 連線同步：房主把波次狀態傳給加入的玩家
+function grdSnap(){return{w:GD.wave,n:r2(GD.nextAt),wr:GD.warned,d:GD.dirs,l:GD.left,c:GD.cid}}
+function grdApply(a){
+  const warn=a.wr&&!GD.warned;
+  GD.wave=a.w|0;GD.nextAt=+a.n||0;GD.warned=a.wr?1:0;GD.dirs=Array.isArray(a.d)?a.d.map(x=>x|0):[];GD.left=a.l|0;GD.cid=a.c;
+  if(warn)for(const i of GD.dirs){const p=grdEdge(i);pings.push({x:p.x,z:p.z,t:time})}
+  const c=grdCastle();if(c&&!c.dead){c.castle=1;c.maxhp=Math.round(maxHpOf('bld','tc',c.team)*GRD_CASTLE)}
+}
+// 電腦隊友：平時留在城堡附近，來襲預警時把閒置的軍隊調到敵人來的方向的城門內側
+function grdAiArmy(A,army,tc){
+  const idle=army.filter(u=>!u.order);if(!idle.length)return;
+  let gx=tc.x,gz=tc.z;
+  if(GD.warned&&GD.dirs.length){const a=GD.dirs[0]*Math.PI/4,r=GD.R-2,k=1/Math.max(Math.abs(Math.cos(a)),Math.abs(Math.sin(a)));gx=tc.x+Math.cos(a)*r*k;gz=tc.z+Math.sin(a)*r*k}
+  idle.forEach(u=>{if(Math.hypot(u.x-gx,u.z-gz)>(GD.warned?3:8))orderMove(u,gx+(Math.random()-0.5)*3,gz+(Math.random()-0.5)*3,true)});
+}
+function grdHud(){
+  grdPing();
+  const L=GD.L,c=grdCastle(),hp=c&&!c.dead?Math.max(1,Math.round(c.hp/c.maxhp*100)):0;
+  let s='🛡️ ';
+  if(GD.wave<L.waves)s+='第 '+(GD.wave+1)+'／'+L.waves+' 波　'+fmtT(Math.max(0,GD.nextAt-time))+(GD.warned?'　'+GD.dirs.map(i=>GRD_DIR[i]).join('、'):'')+(GD.left?'　場上敵軍 '+GD.left:'');
+  else s+='最後一波　剩 '+GD.left+' 名敵軍';
+  $('r-grd').textContent=s+'　城堡 '+hp+'%';
+}
+/* ================= 對戰規則（見 VR_LIST） ================= */
+// 聖地爭奪：VR.sites 是三處聖地，VR.owner[i] 是各聖地目前的佔領陣營（-1＝無人），VR.cap[i] 是奪取進度 {s:陣營,n:秒數}，VR.hold[陣營] 是累計分數
+const vrSideCol=s=>{const t=TEAMS.find(t=>active[t]&&sides[t]===s);return t==null?'#f2c14e':MINI_COL[t]};
+function vrInit(o){
+  for(const m of VR.marks||[])scene.remove(m);
+  for(const k in VR)delete VR[k];
+  VR.mode=!ADV&&!GRD&&VR_NAME[o&&o.vr]?o.vr:'std';VR.hold=TEAMS.map(()=>0);VR.kings={};VR.wonder=null;VR.treatyT=VR.mode==='treaty'?VR_TREATY:0;VR.endTxt='';
+  // 可調參數（測試時可用 opts.vrDbg 覆寫）：need＝聖地獲勝分數、one＝只用中央一處聖地（舊規則，比對用）、lock＝遊牧探路期、eat＝每人口每秒耗糧、pick＝指定電腦去哪種營地
+  const d=o&&o.vrDbg||{};VR.need=d.need||VR_HILL;VR.one=!!d.one;VR.lock=d.lock!=null?d.lock:VR_NOMAD_T;VR.eat=d.eat!=null?d.eat:VR_EAT;VR.pick=d.pick||null;
+  VR.owner=[];VR.cap=[];VR.marks=[];VR.fa=TEAMS.map(()=>0);VR.st=TEAMS.map(()=>0);VR.camps=[];
+}
+// 聖地的地點：地圖中央，加上兩個「到各基地距離盡量相等」的點（由基地位置決定，連線各端算出來一樣）
+function vrSites(){
+  const c=N/2,S=[{x:c,z:c}];if(VR.one)return S;
+  const cand=[];for(let i=0;i<32;i++){const a=i/32*Math.PI*2,x=Math.round(c+Math.cos(a)*N*0.25),z=Math.round(c+Math.sin(a)*N*0.25);
+    const ds=BASES.map(b=>Math.hypot(b.x-x,b.z-z)),mn=Math.min(...ds);if(mn<20)continue;cand.push({x,z,a,sp:Math.max(...ds)-mn-mn*0.01})}
+  cand.sort((p,q)=>p.sp-q.sp||p.a-q.a);
+  const far=(p,q)=>{let d=Math.abs(p.a-q.a);if(d>Math.PI)d=Math.PI*2-d;return d>=Math.PI*0.55};
+  for(const p of cand){if(S.length>=3)break;if(S.slice(1).every(q=>far(p,q)))S.push(p)}
+  return S.map(p=>({x:p.x,z:p.z}));
+}
+// 聖地：清出每個地點的空地（地圖生成後、放資源前）
+function vrCarve(gen){if(VR.mode!=='hill')return;VR.sites=vrSites();VR.owner=VR.sites.map(()=>-1);VR.cap=VR.sites.map(()=>({s:-1,n:0}));const R=VR_HILL_R+2;
+  for(const s of VR.sites)for(let dx=-R;dx<=R;dx++)for(let dz=-R;dz<=R;dz++)if(Math.hypot(dx,dz)<=R+0.5){const x=ti(s.x)+dx,z=ti(s.z)+dz;if(x>0&&z>0&&x<N-1&&z<N-1)gen[x+z*N]=0}}
+// 依佔領陣營更新聖地圓環的顏色（主機與加入方都會呼叫）
+function vrPaint(){(VR.marks||[]).forEach((g,i)=>{const col=VR.owner[i]>=0?vrSideCol(VR.owner[i]):'#f2c14e';g.userData.mats.forEach(m=>m.color.set(col))})}
+// 聖地的標示：圓環＋中央石柱（只是畫面，不擋路）；圓環顏色＝佔領陣營，金色＝無人佔領
+function vrMark(){
+  if(VR.mode!=='hill')return;
+  for(const C of VR.sites){const g=new THREE.Group();
+  const ring=new THREE.Mesh(new THREE.RingGeometry(VR_HILL_R-0.25,VR_HILL_R,64),new THREE.MeshBasicMaterial({color:0xf2c14e,transparent:true,opacity:0.85,side:THREE.DoubleSide,depthWrite:false}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=0.04;g.add(ring);
+  const fill=new THREE.Mesh(new THREE.CircleGeometry(VR_HILL_R-0.25,64),new THREE.MeshBasicMaterial({color:0xf2c14e,transparent:true,opacity:0.12,depthWrite:false}));
+  fill.rotation.x=-Math.PI/2;fill.position.y=0.03;g.add(fill);
+  const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.3,1.6,8),new THREE.MeshLambertMaterial({color:0xd9c79a}));pil.position.y=0.8;g.add(pil);
+  const gem=new THREE.Mesh(new THREE.OctahedronGeometry(0.3),new THREE.MeshBasicMaterial({color:0xffd75e}));gem.position.y=1.95;gem.name='gem';g.add(gem);
+  g.userData.mats=[ring.material,fill.material,gem.material];g.position.set(C.x,0,C.z);scene.add(g);VR.marks.push(g)}
+  vrPaint();
+}
+// 領主：每個王國一位，外觀沿用騎士，頭上有金色記號
+function vrCrown(e){if(!e||e.crown)return;const m=new THREE.Mesh(new THREE.OctahedronGeometry(0.17),new THREE.MeshBasicMaterial({color:0xffd23f}));m.position.y=(e.d.h||1.2)*1.15+0.45;e.mesh.add(m);e.crown=m}
+function vrSetup(){
+  if(VR.mode==='king'){VR.endTxt=''}   // 勝負文字由 showEnd 依輸贏決定
+  // 領主：生命是騎士的 6 倍，脫離戰鬥 5 秒後會慢慢回復（見 updUnit）
+  if(VR.mode==='king')for(const B of BASES){const t=B.t,u=addUnit('knight',t,B.x+0.5,B.z+4.6);u.king=1;u.maxhp=Math.round(u.maxhp*6);u.hp=u.maxhp;VR.kings[t]=u.id;vrCrown(u)}
+  // 遊牧開局：電腦先決定要去哪個營地（快攻型偏好靠中央的富營地，防守型偏好近的），探路期就讓村民走過去
+  if(VR.mode==='nomad')for(const B of BASES){const t=B.t,ai=ais[t];if(!ai)continue;
+    const dB=c=>Math.hypot(c.x-B.x,c.z-B.z),rich=VR.camps.filter(c=>c.rich).sort((p,q)=>dB(p)-dB(q))[0],near=VR.camps.find(c=>c.t===t);
+    const pRich={rush:0.6,raider:0.6,balanced:0.45,boom:0.4,turtle:0.2}[ai.strat]||0.45;
+    const want=VR.pick&&VR.pick[t]||(Math.random()<pRich?'rich':'near'),cp=want==='spawn'?null:want==='rich'?rich||near:near||rich;
+    ai.home=cp?{x:cp.x,z:cp.z}:{x:B.x+0.5,z:B.z+0.5};ai.camp=want;
+    if(cp)for(const e of ents)if(!e.dead&&e.team===t&&e.kind==='unit')orderMove(e,cp.x+(Math.random()-0.5)*3,cp.z+(Math.random()-0.5)*3)}
+}
+// 遊牧開局的探路期：不能建造、不能攻擊
+const vrLock=()=>VR.mode==='nomad'&&time<VR.lock;
+// 飢荒時代：糧食耗盡，王國滅亡
+function vrStarve(t){
+  announce('💀 '+kname(t)+'糧食耗盡，王國滅亡');teams[t].out=true;teams[t].starved=1;ais[t]=null;
+  for(const o of ents.slice())if(!o.dead&&o.team===t)kill(o);checkVictory();
+}
+const vrKing=t=>{const id=VR.kings[t];if(id==null)return null;const e=byId.get(id);return e&&!e.dead?e:null};
+// 領主陣亡：整個王國出局
+function vrKingDown(e){
+  if(net.role==='client'||!running)return;announce('👑 '+kname(e.team)+'的領主陣亡，王國出局');teams[e.team].out=true;
+  for(const o of ents.slice())if(!o.dead&&o.team===e.team)kill(o);checkVictory();
+}
+// 主機每秒呼叫：聖地佔領、奇觀倒數、和平條約結束
+function vrTick(){
+  if(VR.mode==='treaty'&&VR.treatyT&&time>=VR.treatyT){VR.treatyT=0;announce('⚔️ 和平條約結束，可以開始攻擊了！')}
+  if(VR.mode==='nomad'&&!VR.unl&&time>=VR.lock){VR.unl=1;if(VR.lock)announce('🏕️ 探路期結束，可以建造城鎮中心了！')}
+  if(VR.mode==='famine')for(const t of TEAMS){const tm=teams[t];if(!active[t]||tm.out||tm.pop<=0)continue;
+    VR.fa[t]+=tm.pop*VR.eat;const k=Math.floor(VR.fa[t]);VR.fa[t]-=k;tm.food=Math.max(0,tm.food-k);
+    if(tm.food>0)VR.st[t]=0;else{if(++VR.st[t]===1&&VR_STARVE>1)announce('🍖 '+kname(t)+'斷糧了！');if(VR.st[t]>=VR_STARVE){vrStarve(t);if(ended)return}}}
+  if(VR.mode==='hill'){
+    VR.sites.forEach((C,i)=>{const here=new Set(),cap=VR.cap[i];
+      for(const e of ents)if(!e.dead&&e.kind==='unit'&&e.type!=='villager'&&e.team>=0&&Math.hypot(e.x-C.x,e.z-C.z)<=VR_HILL_R)here.add(sides[e.team]);
+      const s=here.size===1?[...here][0]:-1;
+      if(VR.one){if(VR.owner[i]!==s){VR.owner[i]=s;vrPaint()}}   // 舊規則（比對用）：人在才算佔領
+      // 奪取：只有一方的軍隊在場，連續 VR_HILL_CAP 秒就換手；佔領後離開也不會失去
+      else if(s>=0&&s!==VR.owner[i]){if(cap.s!==s){cap.s=s;cap.n=0}
+        if(++cap.n>=VR_HILL_CAP){VR.owner[i]=s;cap.s=-1;cap.n=0;vrPaint();ping(C.x,C.z);announce('🏳️ 第 '+(s+1)+' 陣營佔領了一處聖地（共 '+VR.owner.filter(o=>o===s).length+'／'+VR.sites.length+' 處）')}}
+      else if(!here.size||s===VR.owner[i]){cap.s=-1;cap.n=0}
+    });
+    // 計分：佔領聖地數量最多的陣營每秒得 1 分；平手時都不得分（舊規則：佔領中央就得分）
+    {const cnt={};let best=-1,bn=0,tie=false;for(const o of VR.owner)if(o>=0)cnt[o]=(cnt[o]||0)+1;
+      for(const k in cnt){if(cnt[k]>bn){bn=cnt[k];best=+k;tie=false}else if(cnt[k]===bn)tie=true}
+      const lead=tie?-1:best;if(lead!==VR.lead){VR.lead=lead;if(lead>=0&&!VR.one)announce('⚔️ 第 '+(lead+1)+' 陣營佔領的聖地最多，開始累計分數')}
+      if(lead>=0)VR.hold[lead]++}
+    for(let s=0;s<VR.hold.length;s++){const left=VR.need-VR.hold[s];if(left<=60&&left>0&&!(VR.w60=VR.w60||[])[s]){VR.w60[s]=1;announce('⏳ 第 '+(s+1)+' 陣營再 60 分就獲勝，快去奪回聖地！')}
+      if(left<=0){VR.endTxt='第 '+(s+1)+' 陣營靠佔領聖地得到 '+VR.need+' 分。';endGame(s);return}}
+  }
+  if(VR.mode==='wonder'){
+    let best=null;for(const e of ents)if(!e.dead&&e.kind==='bld'&&e.type==='wonder'&&e.done){if(e.doneAt==null){e.doneAt=time;announce('🏛️ '+kname(e.team)+'完成了奇觀！守住 '+VR_WONDER/60+' 分鐘就獲勝')}if(!best||e.doneAt<best.doneAt)best=e}
+    VR.wonder=best?{side:sides[best.team],left:Math.max(0,Math.ceil(best.doneAt+VR_WONDER-time)),t:best.team}:null;
+    if(best&&VR.wonder.left===60)announce('⏳ '+kname(best.team)+'的奇觀再撐 1 分鐘就獲勝');
+    if(best&&VR.wonder.left<=0){VR.endTxt=kname(best.team)+'的奇觀屹立 '+VR_WONDER/60+' 分鐘。';endGame(sides[best.team])}
+  }
+}
+const vrPeace=()=>(VR.mode==='treaty'&&VR.treatyT>time)||vrLock();   // 和平條約期間、遊牧探路期
+const vrPeaceLeft=()=>vrLock()?VR.lock-time:VR.treatyT-time;
+function vrSnap(){return{m:VR.mode,h:VR.hold,o:VR.owner,k:VR.kings,w:VR.wonder,tt:VR.treatyT,st:VR.st}}
+function vrApply(a){VR.hold=a.h||VR.hold;VR.kings=a.k||{};VR.wonder=a.w||null;VR.treatyT=a.tt||0;if(Array.isArray(a.st))VR.st=a.st;
+  if(Array.isArray(a.o)&&a.o.join()!==VR.owner.join()){a.o.forEach((o,i)=>{if(o!==VR.owner[i]&&o>=0&&VR.sites&&VR.sites[i])ping(VR.sites[i].x,VR.sites[i].z)});VR.owner=a.o.slice();vrPaint()}
+  for(const t in VR.kings){const k=vrKing(+t);if(k){k.king=1;k.maxhp=Math.round(maxHpOf('unit',k.type,k.team)*6);vrCrown(k)}}}
+function vrHud(){
+  const el=$('chip-vr');if(VR.mode==='std'){el.hidden=true;return}el.hidden=false;let s='📜 '+VR_NAME[VR.mode];
+  if(VR.mode==='treaty')s+=VR.treatyT>time?'　剩 '+fmtT(VR.treatyT-time):'　已結束';
+  else if(VR.mode==='hill'){const sd=[...new Set(TEAMS.filter(t=>active[t]).map(t=>sides[t]))];s+='　'+sd.map(x=>'第'+(x+1)+'隊 '+(VR.hold[x]||0)+' 分'+'🏳️'.repeat(VR.owner.filter(o=>o===x).length)).join('　')+'　目標 '+VR.need+' 分'}
+  else if(VR.mode==='nomad')s+=vrLock()?'　探路期 剩 '+fmtT(Math.ceil(VR.lock-time))+'（還不能建造與攻擊）':'';
+  else if(VR.mode==='famine'){const tm=teams[myTeam],rate=tm.pop*VR.eat,st=VR.st[myTeam]|0,low=rate>0&&tm.food<rate*45;
+    s+=st>0&&!tm.out?'　⚠️ 斷糧！'+Math.max(0,VR_STARVE-st)+' 秒後滅亡':'　🍖 每秒吃掉 '+rate.toFixed(1)+'　安全存量 '+vrReserve(myTeam)+(low?'　⚠️ 存糧不到 45 秒':'');
+    el.classList.toggle('warn',low||st>0);
+    // 存糧偏低時提醒一次；回到安全量以上才會再提醒
+    if(running&&!tm.out){if(low&&!VR.warned){VR.warned=1;toast('🍖 食物快不夠吃了！多派村民採集食物或蓋農田');sfx('error',0.7,0.8)}else if(!low&&tm.food>rate*90)VR.warned=0}}
+  else if(VR.mode==='wonder')s+=VR.wonder?'　'+cleanName(kname(VR.wonder.t))+' 的奇觀 剩 '+fmtT(VR.wonder.left):'　尚無完成的奇觀';
+  else if(VR.mode==='king'){const k=vrKing(myTeam);s+=k?'　你的領主 '+Math.max(1,Math.round(k.hp/k.maxhp*100))+'%':''}
+  $('r-vr').textContent=s;
+}
 function startGame(seed,role,cfg,me,opts){
-  bgmFade(0.5);
+  bgmFade(0.5);ended=false;
+  GRD=!!(opts&&opts.grd);document.body.classList.toggle('grd',GRD);$('chip-grd').hidden=!GRD;
   natMode=!!(opts&&opts.nat);
   stumps.splice(0).forEach(s=>scene.remove(s));
   net.role=role;ADV=!!(opts&&opts.adv);advSlot=me||0;myTeam=ADV?0:(me||0);fogOn=!!(opts&&opts.fog);paused=false;
+  vrInit(opts);
   // 設定少於 10 個位置時，其餘位置視為關閉
   cfg=TEAMS.map(t=>cfg[t]||{kind:'off',side:t});
   // 顏色：先套用指定的，重複或沒指定的依序分配尚未使用的顏色
@@ -5576,19 +6118,24 @@ function startGame(seed,role,cfg,me,opts){
     if(NAT_START[nations[t]])Object.assign(teams[t],NAT_START[nations[t]]);
     pnames[t]=cleanName(c.name)||(c.kind==='ai'?'電腦（'+NAMES[t]+'）':NAMES[t]+'王國');
     const d=DIFFS[c.diff]||DIFFS.normal;
-    ais[t]=c.kind==='ai'&&role!=='client'?mkAi(d):null;
+    ais[t]=c.kind==='ai'&&role!=='client'?mkAi(d):null;teams[t].hum=c.kind!=='off'&&c.kind!=='ai'&&c.kind!=='grd';   // hum：真人玩家（電腦投降後 ais[t] 會變 null，不能用它判斷）
   });
   // 畫面風格是每位玩家自己的選擇，不影響遊戲邏輯
   setRefined(artStyle()==='refined');ART.on=ART.ready&&artStyle()==='pixel';applyPxHud(ART.on);
   A2D.on=A2D.ready&&artStyle()==='2d';if(artStyle()==='2d'&&!A2D.on)setTimeout(()=>toast('2D 美術素材還沒載入完成，這一局先用 3D 風格'),800);
-  allocMap(mapSizeFor(ADV?3+Math.ceil(((opts.adv.players||[]).length-1)/2):TEAMS.filter(t=>active[t]).length));
-  layoutBases(seed);
-  buildResources(genMap(seed));
-  if(fogOn)initFog();
-  if(ADV){advInit(opts.adv);if(role!=='client')advSetup(seed)}else if(role!=='client')for(const B of BASES){
-    const t=B.t;addBuilding('tc',t,B.x-1,B.z-1,true);for(let i=-1;i<=1;i++)addUnit('villager',t,B.x+0.5+i*0.9,B.z+2.6);
+  allocMap(mapSizeFor(ADV?3+Math.ceil(((opts.adv.players||[]).length-1)/2):GRD?2:TEAMS.filter(t=>active[t]).length));
+  layoutBases(seed);if(GRD)grdLayout();
+  {const gen=genMap(seed);if(GRD)grdCarve(gen);vrCarve(gen);buildResources(gen)}
+  if(fogOn)initFog();vrMark();
+  if(ADV){advInit(opts.adv);if(role!=='client')advSetup(seed)}else if(GRD){grdInit(opts.grd);if(role!=='client')grdSetup()}else if(role!=='client'){for(const B of BASES){
+    const t=B.t;
+    // 遊牧開局：沒有城鎮中心，改成 6 位村民與足夠蓋城鎮中心的木材
+    if(VR.mode==='nomad'){for(let i=0;i<6;i++)addUnit('villager',t,B.x+0.5+(i%3-1)*0.9,B.z+1.6+(i/3|0)*0.9);teams[t].wood+=200;teams[t].food+=50}
+    else{addBuilding('tc',t,B.x-1,B.z-1,true);for(let i=-1;i<=1;i++)addUnit('villager',t,B.x+0.5+i*0.9,B.z+2.6)}
     addUnit('scout',t,B.x+0.5,B.z+3.8);
-  }
+  }vrSetup()}
+  // 和平條約：電腦在條約結束前不會進攻
+  if(VR.mode==='treaty')for(const t of TEAMS)if(ais[t])ais[t].nextAttack=Math.max(ais[t].nextAttack,VR_TREATY+20);
   const mb=basePos[myTeam]||BASES[0];cam.x=mb.x+0.5;cam.z=mb.z+0.5;placeCamera();
   $('start').hidden=true;running=true;last=performance.now();updateFog();
   // 通訊入口只在有其他真人玩家的連線遊戲顯示
@@ -5600,13 +6147,17 @@ function startGame(seed,role,cfg,me,opts){
   const mn=nations[myTeam];$('chip-nat').hidden=!mn;if(mn)$('r-nat').innerHTML=NATS[mn].icon+' '+NATS[mn].name;
   const allies=TEAMS.filter(t=>t!==myTeam&&active[t]&&sides[t]===sides[myTeam]).map(kname);
   const foes=TEAMS.filter(t=>active[t]&&sides[t]!==sides[myTeam]).map(kname);
-  toast('你是'+kname(myTeam)+(allies.length?'　盟友：'+allies.join('、'):'')+'　敵人：'+foes.join('、'));
+  if(VR.mode!=='std')setTimeout(()=>{if(running)toast('📜 對戰規則：'+VR_NAME[VR.mode]+'——'+VR_LIST.find(v=>v[0]===VR.mode)[2])},2600);
+  if(GRD)toast('守住中央的城堡！敵軍共 '+GD.L.waves+' 波，第一波在 '+fmtT(GD.L.first)+' 來襲');
+  else toast('你是'+kname(myTeam)+(allies.length?'　盟友：'+allies.join('、'):'')+'　敵人：'+foes.join('、'));
 }
 function showEnd(win,extra){
   setMode(null);$('tree').hidden=true;$('pause').hidden=true;$('quit').hidden=true;
   if(win)sfx('fanfare',1);else sfx('error',0.9,0.6);
   $('end-title').textContent=win?'勝利':'戰敗';$('end-title').style.color=win?'var(--blue)':'var(--red)';
-  $('end-text').textContent=(extra||(ADV?(win?'魔像首領已被擊敗，冒險成功。':'城鎮中心被摧毀，冒險失敗。'):win?'所有敵方的城鎮中心都已被摧毀。':'我方陣營的城鎮中心已全數被摧毀。'))+' 遊戲時間 '+fmtT(time)+'。';
+  if(!extra&&VR.mode==='king')extra=win?'其他陣營的領主都已陣亡。':'我方陣營的領主全數陣亡。';
+  if(!extra&&VR.mode==='famine'&&!win&&(VR.st[myTeam]|0)>=VR_STARVE)extra='糧食耗盡，你的王國滅亡了。';
+  $('end-text').textContent=(extra||(GRD?(win?'所有敵軍都被擊退，成功守住城堡。':'城堡被攻陷，守護失敗（撐到第 '+Math.min(GD.L.waves,GD.wave)+'／'+GD.L.waves+' 波）。'):ADV?(win?'魔像首領已被擊敗，冒險成功。':'城鎮中心被摧毀，冒險失敗。'):win?'所有敵方的城鎮中心都已被摧毀。':'我方陣營的城鎮中心已全數被摧毀。'))+' 遊戲時間 '+fmtT(time)+'。';
   // 最後再記錄一次，讓曲線延伸到結束時間
   if(net.role!=='client')for(let t=0;t<MAXT;t++)if(active[t]){const s=stats[t];s.maxPop=Math.max(s.maxPop,teams[t].pop);s.hist.push([Math.round(time),scoreOf(t).total,teams[t].pop])}
   endTab='summary';renderEnd();$('end').hidden=false;
@@ -5667,23 +6218,32 @@ function drawGraph(cv,idx){
 }
 $('end-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;endTab=b.dataset.tab;sfx('click',0.5);renderEnd()});
 // 存活條件：還有城鎮中心（含建造中），或還有任何單位（村民可以重建城鎮中心）。只剩一個陣營存活時結束
-function teamAlive(t){if(!active[t])return false;for(const e of ents)if(!e.dead&&e.team===t&&(e.type==='tc'||e.kind==='unit'))return true;return false}
+function teamAlive(t){if(!active[t])return false;if(VR.mode==='king'&&!teams[t].noKing)return !!vrKing(t)&&!teams[t].out;for(const e of ents)if(!e.dead&&e.team===t&&(e.type==='tc'||e.kind==='unit'))return true;return false}
 // 每秒由主機檢查：公告滅亡的王國並判定勝負
 function tcWatch(){
-  if(net.role==='client'||ended||!running)return;if(ADV){advCheck();return}
+  if(net.role==='client'||ended||!running)return;if(ADV){advCheck();return}if(GRD){grdCheck();return}
   for(const t of TEAMS){if(!active[t])continue;const tm=teams[t];if(!tm.out&&!teamAlive(t)){tm.out=true;announce(kname(t)+'已經滅亡')}}
   checkVictory();
 }
 function checkVictory(){
-  if(ended||!running)return;if(ADV){advCheck();return}const alive=new Set();for(const t of TEAMS)if(teamAlive(t))alive.add(sides[t]);
-  if(alive.size<=1)endGame(alive.size?[...alive][0]:-1);
+  if(ended||!running)return;if(ADV){advCheck();return}if(GRD){grdCheck();return}const alive=new Set();for(const t of TEAMS)if(teamAlive(t))alive.add(sides[t]);
+  if(alive.size<=1){endGame(alive.size?[...alive][0]:-1);return}
+  // 單人遊戲：玩家自己的王國出局就判定戰敗（同世紀帝國：盟友還活著也一樣，因為玩家已經沒有任何可操作的東西）
+  if(net.role==='solo'&&teams[myTeam].hum&&!teamAlive(myTeam)){VR.endTxt=teams[myTeam].starved?'糧食耗盡，你的王國滅亡了。':VR.mode==='king'?'你的領主陣亡，王國出局。':'你的王國已經滅亡。';endGame(-1);return}
+  // 多人連線：真人玩家所在的陣營都已出局（剩下的全是其他陣營的電腦）時直接結算
+  const humans=TEAMS.filter(t=>active[t]&&teams[t].hum);
+  if(humans.length&&!humans.some(t=>alive.has(sides[t]))){endGame(-1);return}
+  // 多人連線：部分真人出局時，通知他們可以繼續觀戰
+  for(const t of humans)if(!teamAlive(t)&&!teams[t].elimSent){teams[t].elimSent=1;
+    if(t===myTeam)elimNote();else{const c=net.conns&&net.conns.find(c=>c.team===t);if(c)try{c.send({t:'elim'})}catch(_){}}}
 }
+function elimNote(){toast(VR.mode==='king'?'你的領主陣亡，王國已出局；可以繼續觀戰到遊戲結束':'你的王國已滅亡；可以繼續觀戰到遊戲結束');sfx('error',0.8,0.6)}
 function endGame(winner){
   if(ended)return;ended=true;running=false;
-  if(net.role==='host'){net.send(makeSnap());net.send({t:'end',winner,stats:stats.map(s=>Object.assign({},s,{hist:s.hist.slice(-240)}))})}
-  showEnd(winner===sides[myTeam]);
+  if(net.role==='host'){net.send(makeSnap());net.send({t:'end',winner,txt:VR.endTxt||'',stats:stats.map(s=>Object.assign({},s,{hist:s.hist.slice(-240)}))})}
+  showEnd(winner===sides[myTeam],VR.endTxt||undefined);
 }
-const gameOpts=()=>({fog:$('o-fog').checked,nat:$('o-nat').checked});
+const gameOpts=()=>({fog:$('o-fog').checked,nat:$('o-nat').checked,vr:curMode()!=='vs'?'std':prepMode==='room'?room.vr||'std':soloVr});
 /* ---------- 畫面風格：3D 模型或 Codex 像素素材 ---------- */
 function artStyle(){return $('o-style').value}
 try{const v=localStorage.getItem('tinylord-style');if(v==='pixel'||v==='3d'||(v==='refined'&&REF)||(v==='2d'&&window.TL_ART2D))$('o-style').value=v}catch(_){}
@@ -5711,10 +6271,10 @@ function natCard(k){
   const n=NATS[k];
   return'<b>'+n.icon+' '+n.name+'</b>（'+n.theme+'）— '+n.tag+'<br>優勢：'+n.pros.join('；')+'<br>開局資源：'+startStr(k)+'<br>特殊建築：'+natSpecial(k)+'<br>盟友加成：'+n.ally+'<br>缺少科技：'+n.lacks.map(id=>TECH[id].name).join('、');
 }
-function prepTreeLabel(){$('b-prep-tree').lastChild.nodeValue=room.adv?' 技能':' 科技'}
+function prepTreeLabel(){$('b-prep-tree').lastChild.nodeValue=curMode()==='adv'?' 技能':' 科技'}
 function renderNatPick(){
   prepTreeLabel();
-  if(room.adv&&prepMode==='room'){advRenderPick();return}
+  if(curMode()==='adv'){advRenderPick();return}
   $('fl-nat').textContent='國家';
   $('nat-pick').innerHTML=['rand'].concat(NAT_IDS).map(k=>{const n=NATS[k];
     return'<button type="button" role="radio" aria-checked="'+(k===myNat)+'" data-nat="'+k+'">'+(n?n.icon+' '+n.name+'<small>'+n.theme+'</small>':ico('icon_nation_random','🎲',30)+' 隨機<small>任一國</small>')+'</button>'}).join('');
@@ -5782,17 +6342,17 @@ $('b-pause').addEventListener('click',openMenu);
 /* ---------- 標題畫面的流程：主選單 → 單人遊戲準備／多人連線 → 房間 ---------- */
 const DIFF_NAME={beginner:'新手',easy:'簡單',normal:'普通',hard:'困難',expert:'專家'};
 let soloDiff='normal';try{const v=localStorage.getItem('tinylord-diff');if(DIFF_NAME[v])soloDiff=v}catch(_){}
-let prepMode='solo';
 function showScreen(s){
   for(const k of ['home','prep','multi'])$('scr-'+k).hidden=k!==s;$('start').scrollTop=0;$('ver-tag').hidden=s!=='home';if(s!=='multi'&&s!=='prep')netMsg('');
   // 連線訊息（含房間代碼）放在目前畫面看得到的位置：房間頁放進固定頁尾
   const nm=$('net-msg');if(s==='prep'){if(prepMode==='room')$('room-top').prepend(nm);else document.querySelector('.prep-foot').prepend(nm)}else $('start').querySelector('.card').appendChild(nm);
 }
-function renderDiff(){document.querySelectorAll('[data-diff]').forEach(b=>b.setAttribute('aria-checked',b.dataset.diff===soloDiff))}
+function renderDiff(){const d=prepMode==='room'?room.gdiff||'normal':soloDiff;document.querySelectorAll('[data-diff]').forEach(b=>b.setAttribute('aria-checked',b.dataset.diff===d))}
 // 頁尾摘要：開始前一眼確認所有選擇
 function updatePrepSum(){
   const nat=NATS[myNat]?NATS[myNat].name:'隨機國家',fog=$('o-fog').checked?'迷霧開啟':'迷霧關閉';
-  $('prep-sum').textContent=prepMode==='solo'?nat+' · '+DIFF_NAME[soloDiff]+'難度 · '+($('o-count').value||2)+' 個王國 · '+fog:roomStatus();
+  const m=curMode(),mt=m==='grd'?'協力守護 '+GRD_LEN[grdLen].n+'・電腦隊友 '+(+$('o-grd-ai').value||0)+' 位':m==='adv'?'冒險・'+ADV_CLS[myCls].name:($('o-count').value||2)+' 個王國'+(soloVr!=='std'?'・'+VR_NAME[soloVr]:'');
+  $('prep-sum').textContent=prepMode==='solo'?(m==='adv'?'':nat+' · '+DIFF_NAME[soloDiff]+'難度 · ')+mt+' · '+fog:roomStatus();
 }
 function setMePanelOff(){$('scr-prep').classList.remove('me-open');$('me-done-row').hidden=true;$('b-me-edit').textContent='編輯'}
 function setPrepMode(m){
@@ -5802,21 +6362,60 @@ function setPrepMode(m){
   // 右欄：多人時把規則與聊天放在同一欄（規則維持自己的高度，聊天填滿其餘空間）
   $('room-side').hidden=solo;$('rules-title').textContent=solo?'遊戲規則':'遊戲規則';
   if(solo){document.querySelector('.prep-grid').appendChild($('rules'));$('room').appendChild($('room-chat'))}else{$('room-side').appendChild($('rules'));$('room-side').appendChild($('room-chat'))}setMePanelOff();if(solo){roomEdit=-1;pendCount=null}
-  $('prep-title').textContent=solo?'單人遊戲':'多人房間';
-  $('diff-row').hidden=!solo;$('count-row').hidden=!solo;$('room').hidden=solo;
+  $('prep-title').textContent=solo?'單人遊戲':'多人房間';$('room').hidden=solo;
   $('b-solo-start').hidden=!solo;$('b-back').hidden=!solo;$('b-leave').hidden=solo;if(solo)$('b-start').hidden=true;
   // 多人時只有房主能改迷霧
   const host=solo||room.host;$('o-fog').disabled=!host;$('rules-note').hidden=host;
-  updatePrepSum();
+  applyModeUI();
 }
-$('b-solo').addEventListener('click',()=>{setPrepMode('solo');renderDiff();showScreen('prep');renderColorPick();sfx('click',0.5)});
-// 冒險模式沿用多人房間：可以自己一個人開始，也能把代碼給朋友一起玩
-let advWanted=false,myCls='sword',myPts=[0,0,0];
+/* ---------- 遊戲模式：對戰、協力守護、冒險。單人在準備頁切換；多人由房主在房間裡切換 ---------- */
+try{const v=localStorage.getItem('tinylord-grd-len');if(GRD_LEN[v])grdLen=v;const m=localStorage.getItem('tinylord-mode');if(m==='vs'||m==='grd'||m==='adv')soloMode=m}catch(_){}
+function curMode(){return prepMode==='room'?(room.adv?'adv':room.grd?'grd':'vs'):soloMode}
+// 依模式顯示對應的設定列；多人時只有房主能改
+function applyModeUI(){
+  const m=curMode(),solo=prepMode!=='room',host=solo||room.host;
+  // 選單把「對戰＋規則」攤平成一個清單：對戰模式下以規則代號當作選中的項目
+  const vr=solo?soloVr:room.vr||'std',pick=m==='vs'?vr:m;
+  $('o-mode').value=pick;$('o-mode').disabled=!host;
+  $('diff-row').hidden=m==='adv'||(!solo&&m!=='grd');$('count-row').hidden=!solo||m!=='vs';$('grd-row').hidden=m!=='grd';$('grd-ai-row').hidden=!solo;
+  $('vr-desc').textContent=m==='grd'?'和隊友一起守住中央的城堡，撐過所有波次就獲勝。':m==='adv'?'操控一位英雄探索地圖、打倒怪物與首領，可單人或多人合作。':(VR_LIST.find(v=>v[0]===vr)||VR_LIST[0])[2];
+  const gl=solo?grdLen:room.glen;document.querySelectorAll('[data-glen]').forEach(b=>{b.setAttribute('aria-checked',b.dataset.glen===gl);b.disabled=!host});
+  renderDiff();document.querySelectorAll('[data-diff]').forEach(x=>x.disabled=!host);
+  prepTreeLabel();renderNatPick();updatePrepSum();
+}
+function setSoloMode(m){soloMode=m;try{localStorage.setItem('tinylord-mode',m)}catch(_){}applyModeUI()}
+// 房主切換房間模式：冒險＝全部開放給玩家、同一隊；協力守護＝最多 4 位、同一隊；對戰＝恢復各自一隊
+function setRoomMode(m){
+  if(!room.host||running)return;room.adv=m==='adv';room.grd=m==='grd';
+  if(room.adv){for(const i of TEAMS){if(i>0)room.slots[i].kind='open';room.slots[i].side=0}applyCount(4)}
+  else if(room.grd){room.nat=true;for(const i of TEAMS)room.slots[i].side=0;applyCount(Math.min(4,Math.max(2,room.count)))}
+  else{for(const i of TEAMS)room.slots[i].side=i;applyCount(room.count)}
+  applyModeUI();
+}
+$('o-mode').addEventListener('change',()=>{sfx('click',0.5);
+  let m=$('o-mode').value;
+  // 對戰類的項目：模式設為對戰，並記下規則
+  if(VR_NAME[m]){const v=m;m='vs';if(prepMode==='room'){if(!room.host)return;room.vr=v}else{soloVr=v;try{localStorage.setItem('tinylord-vr',v)}catch(_){}}}
+  if(prepMode==='room'){setRoomMode(m);sendLobby()}else setSoloMode(m)});
+// 單人準備頁固定成「內容最多的那個模式」的高度，切換模式時視窗大小不會跳動
+let fitBusy=false,fitT=0;
+function fitPrep(){const g=document.querySelector('.prep-grid');if(!g||fitBusy)return;g.style.minHeight='';if(prepMode==='room'||!g.offsetParent)return;
+  fitBusy=true;const m0=soloMode,v0=soloVr;let mx=0;
+  for(const m of ['std','king','hill','wonder','treaty','nomad','famine','grd','adv']){if(VR_NAME[m]){soloMode='vs';soloVr=m}else soloMode=m;applyModeUI();mx=Math.max(mx,g.getBoundingClientRect().height)}
+  soloMode=m0;soloVr=v0;applyModeUI();g.style.minHeight=Math.ceil(mx)+'px';fitBusy=false}
+addEventListener('resize',()=>{clearTimeout(fitT);fitT=setTimeout(fitPrep,150)});
+function openSolo(){setPrepMode('solo');showScreen('prep');renderColorPick();fitPrep();setTimeout(fitPrep,450);sfx('click',0.5)}   // 轉場動畫結束後再量一次
+$('b-solo').addEventListener('click',openSolo);
+$('grd-row').addEventListener('click',e=>{const b=e.target.closest('[data-glen]');if(!b||b.disabled)return;
+  if(prepMode==='room'){if(!room.host)return;room.glen=b.dataset.glen;sendLobby()}else{grdLen=b.dataset.glen;try{localStorage.setItem('tinylord-grd-len',grdLen)}catch(_){}}
+  applyModeUI();sfx('click',0.5)});
+$('o-grd-ai').addEventListener('change',updatePrepSum);
+try{const v=localStorage.getItem('tinylord-vr');if(VR_NAME[v])soloVr=v}catch(_){}
 try{const c=localStorage.getItem('tinylord-adv-cls');if(ADV_CLS[c])myCls=c;myPts=advCleanPts(JSON.parse(localStorage.getItem('tinylord-adv-pts2')||'null'),myCls)}catch(_){myPts=[0,0,0]}
-function openMulti(adv){advWanted=adv;document.querySelector('#scr-multi .scr-title').textContent=adv?'冒險模式':'多人連線';showScreen('multi');sfx('click',0.5)}
-$('b-multi').addEventListener('click',()=>openMulti(false));
-$('b-adv').addEventListener('click',()=>openMulti(true));
+function openMulti(){document.querySelector('#scr-multi .scr-title').textContent='多人連線';showScreen('multi');sfx('click',0.5)}
+$('b-multi').addEventListener('click',openMulti);
 function advSyncHero(){try{localStorage.setItem('tinylord-adv-cls',myCls);localStorage.setItem('tinylord-adv-pts2',JSON.stringify(myPts))}catch(_){}
+  if(prepMode!=='room'){updatePrepSum();return}
   if($('room').hidden||!room.adv)return;room.cls[room.you]=myCls;room.pts[room.you]=myPts.slice();if(room.host)sendLobby();else net.send({t:'hero',cls:myCls,pts:myPts});renderRoom();renderNatPick()}
 function advRenderPick(){
   $('fl-nat').textContent='職業與配點';const C=ADV_CLS[myCls],left=ADV_PTS-myPts.reduce((a,b)=>a+b,0);
@@ -5828,7 +6427,7 @@ function advRenderPick(){
     ADV_ATTR.map((n,i)=>'<div class="ap-r"><span>'+n+'　'+base[i]+' → '+fin[i]+'<small>每點 '+ADV_ATTR_TIP[i]+'</small></span><button type="button" data-pt="'+i+'" data-d="-1" aria-label="減少'+n+'"'+(myPts[i]<=0?' disabled':'')+'>−</button><b>'+myPts[i]+'</b><button type="button" data-pt="'+i+'" data-d="1" aria-label="增加'+n+'"'+(left<=0||myPts[i]>=ADV_PT_MAX?' disabled':'')+'>＋</button></div>').join('')+'</div>';
 }
 $('nat-box').addEventListener('click',e=>{
-  if(!room.adv||prepMode!=='room')return;
+  if(curMode()!=='adv')return;
   const c=e.target.closest('[data-cls]'),p=e.target.closest('[data-pt]'),r=e.target.closest('[data-rec]');
   if(c){myCls=c.dataset.cls}
   else if(p&&!p.disabled){const i=+p.dataset.pt,d=+p.dataset.d,left=ADV_PTS-myPts.reduce((a,b)=>a+b,0);if(d>0&&(left<=0||myPts[i]>=ADV_PT_MAX))return;if(d<0&&myPts[i]<=0)return;myPts[i]+=d}
@@ -5837,13 +6436,27 @@ $('nat-box').addEventListener('click',e=>{
 });
 $('b-back').addEventListener('click',()=>{showScreen('home');sfx('click',0.4)});
 $('b-back2').addEventListener('click',()=>{if(net.peer){leaveLobby('home');return}showScreen('home');sfx('click',0.4)});
-$('diff-row').addEventListener('click',e=>{const b=e.target.closest('[data-diff]');if(!b)return;soloDiff=b.dataset.diff;try{localStorage.setItem('tinylord-diff',soloDiff)}catch(_){}renderDiff();updatePrepSum();sfx('click',0.5)});
+$('diff-row').addEventListener('click',e=>{const b=e.target.closest('[data-diff]');if(!b||b.disabled)return;
+  if(prepMode==='room'){if(!room.host)return;room.gdiff=b.dataset.diff;sendLobby()}else{soloDiff=b.dataset.diff;try{localStorage.setItem('tinylord-diff',soloDiff)}catch(_){}}
+  renderDiff();updatePrepSum();sfx('click',0.5)});
 $('o-count').addEventListener('change',updatePrepSum);
 $('o-fog').addEventListener('change',()=>{updatePrepSum();if(room.host&&prepMode==='room')sendLobby()});
 $('nat-pick').addEventListener('click',()=>setTimeout(updatePrepSum,0));
 $('b-solo-start').addEventListener('click',()=>{
   // 單人：自己對抗 (王國數量 − 1) 個各自為陣的電腦
-  const n=+$('o-count').value||2,rnat=()=>NAT_IDS[Math.random()*6|0];
+  const n=+$('o-count').value||2,rnat=()=>NAT_IDS[Math.random()*6|0],seed=(Math.random()*4294967296)>>>0;
+  if(soloMode==='grd'){
+    // 協力守護：玩家與電腦隊友守城，最後一個位置是分波來襲的入侵軍（隨機國家）；各國特色固定開啟
+    const en=rnat(),na=Math.max(0,Math.min(3,+$('o-grd-ai').value||0)),g=TEAMS.map(t=>({kind:'off',side:0}));
+    g[0]={kind:'human',side:0,name:myName(),nat:NATS[myNat]?myNat:rnat(),color:myColor};
+    for(let i=1;i<=na;i++)g[i]={kind:'ai',side:0,diff:'normal',nat:rnat()};
+    g[GE]={kind:'grd',side:1,name:'入侵軍',nat:en};
+    startGame(seed,'solo',g,0,{fog:$('o-fog').checked,nat:true,grd:{len:grdLen,diff:soloDiff,nat:en}});return}
+  if(soloMode==='adv'){
+    // 單人冒險：和多人冒險同一套規則，只有自己一位冒險者
+    const players=[{slot:0,name:myName(),cls:myCls,pts:myPts.slice(),color:myColor}];
+    const cfg=[{kind:'human',side:0,name:'冒險隊',color:myColor},{kind:'adv',side:1,name:'野外怪物',color:11},{kind:'adv',side:1,name:'敵軍',color:13}];
+    startGame(seed,'solo',cfg,0,{fog:$('o-fog').checked,nat:false,adv:{players}});return}
   const cfg=TEAMS.map(t=>t>=n?{kind:'off',side:t}:t===0?{kind:'human',side:0,name:myName(),nat:NATS[myNat]?myNat:rnat(),color:myColor}:{kind:'ai',side:t,diff:soloDiff,nat:rnat()});
   startGame((Math.random()*4294967296)>>>0,'solo',cfg,0,gameOpts());
 });
@@ -5855,7 +6468,7 @@ $('b-resume').addEventListener('click',togglePause);
 $('tree').addEventListener('click',e=>{if(e.target===$('tree'))closeTree()});
 updateHUD();requestAnimationFrame(frame);
 window.__game={get ents(){return ents},get nodes(){return nodes},teams,cam,ais,sides,room,net,get blocked(){return blocked},get occ(){return occ},get terr(){return terr},get gate(){return gate},get vis(){return vis},get expl(){return expl},get N(){return N},get BASES(){return BASES},TEAM_COL,NAMES,updateFog,get paused(){return paused},ART,artHas,makeBuilding,voice,applyMic,renderVoice,nations,NATS,afford,adjCost,maxHpOf,timeOf,speedOf,techAvail,startGame,stats,scoreOf,showEnd,addUnit,armorOf,dmgVs,UNITS,renderer,scene,fx,get speed(){return gameSpeed},stepSpeed,connOf,updateHUD,get fogOn(){return fogOn},get sel(){return sel},get time(){return time},
-  simulate,setSel,execCmd,updateHUD,makeBuilding,snd,sfx,animateUnits,makeSnap,applySnap,startGame,freeRect,toScreen,placeCamera,showTree,byId,AD};
+  simulate,setSel,execCmd,updateHUD,makeBuilding,snd,sfx,animateUnits,makeSnap,applySnap,startGame,freeRect,toScreen,placeCamera,showTree,byId,AD,GD,VR,grdSpawn,grdPlan,get ended(){return ended}};
 })();
 </script>
 
